@@ -1,0 +1,13 @@
+# Reglas de Apache / Hostinger para Tiffany Cosmetic
+RewriteEngine On
+
+# Permitir acceder a /admin sin necesidad de escribir .html
+RewriteRule ^admin/?$ admin.html [L,QSA]
+
+# Forzar HTTPS si está disponible
+<IfModule mod_rewrite.c>
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP_HOST} !^localhost
+  RewriteCond %{HTTP_HOST} !^127\.0\.0\.1
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>

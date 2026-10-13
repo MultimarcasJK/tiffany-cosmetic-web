@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Administración | Tiffany Cosmetic</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase CDN Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: 'Outfit', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#f7daef] text-stone-800 min-h-screen">
+
+  <!-- Top Header -->
+  <header class="bg-[#fbeaf6]/95 backdrop-blur border-b border-[#e9bfdf] sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-pink-600 text-white flex items-center justify-center font-bold shadow-md shadow-pink-600/20">
+          <i data-lucide="sparkles" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-stone-900">Panel de Control Tiffany Cosmetic</h1>
+          <div class="flex items-center gap-2 text-xs text-stone-600">
+            <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-100/80 px-2 py-0.5 rounded-full text-[10px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Conectado a Supabase (Nube)
+            </span>
+            <span>• Escala de 3 Precios</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Tabs Selector -->
+        <div class="flex bg-white/90 p-1 rounded-xl border border-[#e9bfdf] text-xs font-semibold">
+          <button id="tabProductsBtn" class="px-3 py-1.5 rounded-lg bg-pink-600 text-white font-bold transition-all flex items-center gap-1.5">
+            <i data-lucide="package" class="w-3.5 h-3.5"></i>
+            <span>Productos</span>
+          </button>
+          <button id="tabOrdersBtn" class="px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5">
+            <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+            <span>Pedidos Recibidos</span>
+            <span id="ordersCountBadge" class="bg-stone-200 text-stone-800 text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+          </button>
+        </div>
+
+        <a href="index.html" target="_blank" class="px-3.5 py-2 text-xs font-semibold text-stone-700 bg-white/90 hover:bg-white rounded-xl border border-[#e9bfdf] flex items-center gap-1.5 transition-colors shadow-xs">
+          <i data-lucide="external-link" class="w-4 h-4"></i>
+          <span>Ver Tienda</span>
+        </a>
+
+        <button id="logoutBtn" class="px-3.5 py-2 text-xs font-semibold text-stone-700 bg-white/90 hover:bg-white rounded-xl border border-[#e9bfdf] flex items-center gap-1.5 transition-colors shadow-xs">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>Salir</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    
+    <!-- ================= SECTION: PRODUCTOS ================= -->
+    <div id="sectionProducts" class="space-y-6">
+      <!-- Controls Bar -->
+      <div class="bg-white p-4 rounded-2xl border border-[#e9bfdf] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="relative w-full sm:w-80">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"></i>
+          <input type="text" id="adminSearch" placeholder="Buscar por nombre o categoría..." 
+                 class="w-full pl-9 pr-3 py-2 text-xs border border-stone-200 rounded-xl bg-stone-50 focus:bg-white focus:outline-none focus:border-pink-500">
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <span id="productTotalBadge" class="text-xs font-bold text-stone-500">Cargando productos...</span>
+          <button id="openNewProductBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-md shadow-pink-600/20">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Agregar Producto Nuevo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Products Table -->
+      <div class="bg-white rounded-2xl border border-[#e9bfdf] shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-[#fdf3f8] text-stone-700 border-b border-[#e9bfdf] uppercase tracking-wider text-[10px]">
+              <tr>
+                <th class="py-3 px-4">Foto</th>
+                <th class="py-3 px-4">Nombre del Producto</th>
+                <th class="py-3 px-4">Categoría</th>
+                <th class="py-3 px-4 text-right">1-2 (Unitario)</th>
+                <th class="py-3 px-4 text-right">3-11 (Mayor)</th>
+                <th class="py-3 px-4 text-right">12+ (Docena)</th>
+                <th class="py-3 px-4 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="productsTableBody" class="divide-y divide-stone-100">
+              <tr>
+                <td colspan="7" class="py-8 text-center text-stone-400">Cargando productos desde Supabase...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= SECTION: PEDIDOS RECIBIDOS ================= -->
+    <div id="sectionOrders" class="space-y-6 hidden">
+      <div class="bg-white p-4 rounded-2xl border border-[#e9bfdf] shadow-sm flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-stone-900">Historial de Pedidos por WhatsApp</h2>
+          <p class="text-xs text-stone-500">Pedidos registrados automáticamente cuando un cliente hace checkout</p>
+        </div>
+        <button id="refreshOrdersBtn" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold text-stone-700 flex items-center gap-1">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>Actualizar</span>
+        </button>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-[#e9bfdf] shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-[#fdf3f8] text-stone-700 border-b border-[#e9bfdf] uppercase tracking-wider text-[10px]">
+              <tr>
+                <th class="py-3 px-4">Fecha</th>
+                <th class="py-3 px-4">Cliente</th>
+                <th class="py-3 px-4">Ciudad / Dirección</th>
+                <th class="py-3 px-4">Forma de Pago</th>
+                <th class="py-3 px-4">Productos</th>
+                <th class="py-3 px-4 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody" class="divide-y divide-stone-100">
+              <tr>
+                <td colspan="6" class="py-8 text-center text-stone-400">No hay pedidos registrados aún.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Login Overlay -->
+  <div id="loginOverlay" style="display:none" class="fixed inset-0 z-[60] bg-[#f7daef] items-center justify-center p-4">
+    <form id="loginForm" class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs border border-[#e9bfdf]">
+      <div class="text-center space-y-1">
+        <div class="w-12 h-12 mx-auto rounded-full bg-pink-600 text-white flex items-center justify-center shadow-md shadow-pink-600/20">
+          <i data-lucide="lock" class="w-5 h-5"></i>
+        </div>
+        <h2 class="text-base font-bold text-stone-900">Panel de Administración</h2>
+        <p class="text-stone-500">Ingresa con tu cuenta de administrador</p>
+      </div>
+      <div>
+        <label class="block font-bold text-stone-700 mb-1">Correo</label>
+        <input type="email" id="loginEmail" required autocomplete="username" class="w-full border border-stone-200 rounded-lg p-2.5">
+      </div>
+      <div>
+        <label class="block font-bold text-stone-700 mb-1">Contraseña</label>
+        <input type="password" id="loginPassword" required autocomplete="current-password" class="w-full border border-stone-200 rounded-lg p-2.5">
+      </div>
+      <p id="loginError" class="hidden text-red-600 font-semibold">Correo o contraseña incorrectos.</p>
+      <button type="submit" id="loginSubmitBtn" class="w-full py-2.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-bold">Entrar</button>
+      <a href="index.html" class="block text-center text-stone-500 hover:text-stone-800">Volver a la tienda</a>
+    </form>
+  </div>
+
+  <!-- Edit/Create Modal -->
+  <div id="editModal" class="fixed inset-0 z-50 overflow-y-auto hidden bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+        <h3 id="modalTitle" class="font-bold text-stone-900 text-base">Editar Producto</h3>
+        <button id="closeEditModalBtn" class="text-stone-400 hover:text-stone-700">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="productForm" class="space-y-3 text-xs">
+        <input type="hidden" id="editProductId">
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Título del Producto *</label>
+          <input type="text" id="editTitle" required class="w-full border border-stone-200 rounded-lg p-2.5">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Categoría *</label>
+            <input type="text" id="editCategory" required placeholder="Labios, Rostro, etc." class="w-full border border-stone-200 rounded-lg p-2.5">
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Marca</label>
+            <input type="text" id="editMarca" placeholder="Kiss Beauty, SAS, etc." class="w-full border border-stone-200 rounded-lg p-2.5">
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">URL o Ruta de Imagen</label>
+            <input type="text" id="editImage" placeholder="https://... o imagenes/foto.jpg" class="w-full border border-stone-200 rounded-lg p-2.5">
+          </div>
+        </div>
+
+        <!-- 3 PRECIOS EN EL FORMULARIO -->
+        <div class="grid grid-cols-3 gap-2 bg-[#fdf3f8] p-3 rounded-xl border border-[#e9bfdf]">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1 text-[11px]">1 - 2 (Unitario) *</label>
+            <input type="number" step="0.01" id="editPrice" required class="w-full border border-stone-300 rounded-lg p-2 font-bold text-stone-900 bg-white">
+          </div>
+          <div>
+            <label class="block font-bold text-pink-700 mb-1 text-[11px]">3 - 11 (Mayor) *</label>
+            <input type="number" step="0.01" id="editMayorPrice" required class="w-full border border-pink-300 rounded-lg p-2 font-bold text-pink-600 bg-white">
+          </div>
+          <div>
+            <label class="block font-bold text-emerald-700 mb-1 text-[11px]">12+ (Docena) *</label>
+            <input type="number" step="0.01" id="editDocenaPrice" required class="w-full border border-emerald-300 rounded-lg p-2 font-bold text-emerald-600 bg-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Descripción</label>
+          <textarea id="editDescription" rows="4" class="w-full border border-stone-200 rounded-lg p-2.5"></textarea>
+        </div>
+
+        <div class="pt-3 border-t border-stone-100 flex justify-end gap-2">
+          <button type="button" id="cancelModalBtn" class="px-4 py-2 border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50 font-semibold">Cancelar</button>
+          <button type="submit" id="saveProductBtn" class="px-5 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-bold flex items-center gap-1.5">
+            <span>Guardar en Supabase</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="products-data.js"></script>
+  <script>
+    const SUPABASE_CONFIG = {
+      url: "https://hwwawmzorjlijnswwnpl.supabase.co",
+      anonKey: "sb_publishable_Nq4PUpBLhxVYaV5l0LuCCA_4Il5jh_b"
+    };
+
+    let sb = null;
+    let products = [];
+    let orders = [];
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // 1. Inicializar Supabase (necesario antes de autenticar)
+      if (window.supabase && window.supabase.createClient) {
+        try {
+          sb = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+        } catch (e) {
+          console.warn("No se pudo inicializar Supabase Client:", e);
+        }
+      }
+
+      if (window.lucide) window.lucide.createIcons();
+
+      // 2. Control de acceso REAL con Supabase Auth (no hay claves en el código)
+      const autorizado = await requireAuth();
+      if (!autorizado) return;
+
+      // 3. Carga instantánea del catálogo local mientras llega la nube
+      if (window.TIFFANY_PRODUCTS && Array.isArray(window.TIFFANY_PRODUCTS)) {
+        products = window.TIFFANY_PRODUCTS;
+        renderTable();
+      }
+
+      // Configurar botón salir
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (logoutBtn) {
+        logoutBtn.onclick = async () => {
+          if (sb) await sb.auth.signOut();
+          window.location.href = "index.html";
+        };
+      }
+
+      setupEvents();
+
+      // 4. Sincronizar en segundo plano con Supabase (sin congelar la pantalla)
+      fetchProducts();
+      fetchOrders();
+
+      if (window.lucide) window.lucide.createIcons();
+    });
+
+    // Muestra el formulario de login y resuelve cuando hay sesión válida.
+    async function requireAuth() {
+      const overlay = document.getElementById("loginOverlay");
+
+      if (!sb) {
+        alert("No se pudo conectar con el servidor. Revisa tu conexión a internet.");
+        window.location.href = "index.html";
+        return false;
+      }
+
+      // ¿Ya hay sesión abierta? (se mantiene entre recargas)
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) return true;
+
+      overlay.style.display = "flex";
+      if (window.lucide) window.lucide.createIcons();
+
+      return new Promise((resolve) => {
+        const form = document.getElementById("loginForm");
+        const errorMsg = document.getElementById("loginError");
+        const submitBtn = document.getElementById("loginSubmitBtn");
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const email = document.getElementById("loginEmail").value.trim();
+          const password = document.getElementById("loginPassword").value;
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Entrando...";
+          errorMsg.classList.add("hidden");
+
+          const { error } = await sb.auth.signInWithPassword({ email, password });
+
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Entrar";
+
+          if (error) {
+            errorMsg.textContent = "Correo o contraseña incorrectos.";
+            errorMsg.classList.remove("hidden");
+            return;
+          }
+
+          overlay.style.display = "none";
+          resolve(true);
+        });
+      });
+    }
+
+    async function fetchProducts() {
+      if (!sb) return;
+      try {
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout Supabase")), 4000)
+        );
+        const queryPromise = sb
+          .from('productos')
+          .select('*')
+          .order('titulo', { ascending: true });
+
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          products = data;
+          renderTable();
+          console.log(`Catálogo sincronizado desde Supabase (${data.length} productos)`);
+          const badge = document.getElementById("productTotalBadge");
+          if (badge) {
+            badge.innerHTML = `<span class="text-emerald-700 font-bold">● ${data.length} productos (Nube Supabase)</span>`;
+          }
+        }
+      } catch (e) {
+        console.warn("Aviso Supabase productos (se mantienen datos locales):", e);
+        // Garantizar que la tabla se pinte con los datos locales
+        if (products.length === 0 && window.TIFFANY_PRODUCTS) {
+          products = window.TIFFANY_PRODUCTS;
+          renderTable();
+        }
+      }
+    }
+
+    async function fetchOrders() {
+      if (!sb) return;
+      try {
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout pedidos")), 4000)
+        );
+        const queryPromise = sb
+          .from('pedidos')
+          .select('*')
+          .order('fecha_pedido', { ascending: false });
+
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+        if (!error && Array.isArray(data)) {
+          orders = data;
+          const badge = document.getElementById("ordersCountBadge");
+          if (badge) badge.textContent = orders.length;
+          renderOrdersTable();
+        }
+      } catch (e) {
+        console.warn("Aviso leyendo pedidos de Supabase:", e);
+      }
+    }
+
+    function renderTable(filterQuery = "") {
+      const tbody = document.getElementById("productsTableBody");
+      const filtered = products.filter(p => {
+        if (!filterQuery) return true;
+        const q = filterQuery.toLowerCase();
+        const title = (p.titulo || p.title || "").toLowerCase();
+        const cat = (p.categoria || p.category || "").toLowerCase();
+        const marca = (p.marca || "").toLowerCase();
+        return title.includes(q) || cat.includes(q) || marca.includes(q);
+      });
+
+      const agotados = filtered.filter(p => p.disponible === false).length;
+      document.getElementById("productTotalBadge").textContent =
+        `${filtered.length} productos en catálogo` + (agotados ? ` · ${agotados} agotados (ocultos en la tienda)` : "");
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-stone-400">No se encontraron productos.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(p => {
+        const title = p.titulo || p.title || "Sin título";
+        const cat = p.categoria || p.category || "Cosméticos";
+        const u = parseFloat(p.precio_unitario || p.price || 0);
+        const m = parseFloat(p.precio_mayor || p.mayor_price || u);
+        const d = parseFloat(p.precio_docena || p.docena_price || m);
+        const imgs = p.imagenes || p.images || [];
+        const imgSrc = imgs[0] || (p.local_images && p.local_images[0]) || 'https://via.placeholder.com/50';
+        const agotado = p.disponible === false;
+
+        return `
+          <tr class="hover:bg-stone-50/80 transition-colors ${agotado ? 'bg-stone-50' : ''}">
+            <td class="py-2.5 px-4">
+              <img src="${imgSrc}" class="w-10 h-10 object-cover rounded-xl border border-stone-200 ${agotado ? 'opacity-40 grayscale' : ''}">
+            </td>
+            <td class="py-2.5 px-4 font-semibold max-w-xs truncate ${agotado ? 'text-stone-400' : 'text-stone-900'}">
+              ${p.marca ? `<div class="text-[10px] font-bold uppercase tracking-wider text-pink-600">${p.marca}</div>` : ''}
+              ${title}
+              ${agotado ? `<span class="ml-1.5 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-bold">Agotado · oculto en la tienda</span>` : ''}
+            </td>
+            <td class="py-2.5 px-4 text-stone-600"><span class="px-2 py-0.5 bg-stone-100 rounded-full text-[10px] font-medium">${cat}</span></td>
+            <td class="py-2.5 px-4 text-right font-bold text-stone-900">$${u.toFixed(2)}</td>
+            <td class="py-2.5 px-4 text-right font-bold text-pink-600">$${m.toFixed(2)}</td>
+            <td class="py-2.5 px-4 text-right font-bold text-emerald-600">$${d.toFixed(2)}</td>
+            <td class="py-2.5 px-4 text-center">
+              <div class="flex items-center justify-center gap-1.5">
+                <button onclick="toggleAvailable('${p.id}')" class="p-1.5 rounded-lg transition-colors ${agotado ? 'text-emerald-600 hover:bg-emerald-50' : 'text-stone-500 hover:text-amber-600 hover:bg-amber-50'}" title="${agotado ? 'Volver a mostrar en la tienda' : 'Marcar como agotado (ocultar)'}">
+                  <i data-lucide="${agotado ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>
+                </button>
+                <button onclick="editProduct('${p.id}')" class="p-1.5 text-stone-600 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors" title="Editar">
+                  <i data-lucide="pencil" class="w-4 h-4"></i>
+                </button>
+                <button onclick="deleteProduct('${p.id}')" class="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function renderOrdersTable() {
+      const tbody = document.getElementById("ordersTableBody");
+      if (orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-stone-400">No hay pedidos registrados aún.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = orders.map(o => {
+        const dateStr = new Date(o.fecha_pedido || o.created_at).toLocaleString();
+        let items = [];
+        let phone = o.telefono_cliente || '';
+        if (Array.isArray(o.detalle_productos)) {
+          items = o.detalle_productos;
+        } else if (o.detalle_productos && typeof o.detalle_productos === 'object') {
+          if (!phone) phone = o.detalle_productos.telefono || '';
+          items = o.detalle_productos.items || [];
+        }
+
+        const itemsSummary = items.map(i => `${i.cantidad}x ${i.titulo}`).join(", ");
+        const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+
+        return `
+          <tr class="hover:bg-stone-50/80 transition-colors">
+            <td class="py-2.5 px-4 whitespace-nowrap text-stone-500 text-[11px]">${dateStr}</td>
+            <td class="py-2.5 px-4 font-bold text-stone-900">
+              <div>${o.nombre_cliente || 'Cliente'}</div>
+              ${phone ? `
+                <a href="https://wa.me/${cleanPhone.startsWith('0') ? '593' + cleanPhone.substring(1) : cleanPhone}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-semibold hover:underline mt-0.5">
+                  <i data-lucide="message-circle" class="w-3 h-3 text-emerald-600"></i> ${phone}
+                </a>
+              ` : ''}
+            </td>
+            <td class="py-2.5 px-4 text-stone-600">${o.ciudad_cliente || ''} <span class="text-stone-400 text-[11px]">(${o.direccion_cliente || ''})</span></td>
+            <td class="py-2.5 px-4"><span class="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-full font-medium text-[10px]">${o.metodo_pago || 'Transferencia'}</span></td>
+            <td class="py-2.5 px-4 max-w-xs truncate text-stone-700" title="${itemsSummary}">${itemsSummary || '-'}</td>
+            <td class="py-2.5 px-4 text-right font-bold text-stone-900 font-serif">$${(parseFloat(o.total_pagar) || 0).toFixed(2)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function setupEvents() {
+      // Toggle Tabs
+      const tabProductsBtn = document.getElementById("tabProductsBtn");
+      const tabOrdersBtn = document.getElementById("tabOrdersBtn");
+      const sectionProducts = document.getElementById("sectionProducts");
+      const sectionOrders = document.getElementById("sectionOrders");
+
+      tabProductsBtn.addEventListener("click", () => {
+        tabProductsBtn.className = "px-3 py-1.5 rounded-lg bg-pink-600 text-white font-bold transition-all flex items-center gap-1.5";
+        tabOrdersBtn.className = "px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5";
+        sectionProducts.classList.remove("hidden");
+        sectionOrders.classList.add("hidden");
+      });
+
+      tabOrdersBtn.addEventListener("click", () => {
+        tabOrdersBtn.className = "px-3 py-1.5 rounded-lg bg-pink-600 text-white font-bold transition-all flex items-center gap-1.5";
+        tabProductsBtn.className = "px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5";
+        sectionOrders.classList.remove("hidden");
+        sectionProducts.classList.add("hidden");
+        fetchOrders();
+      });
+
+      document.getElementById("refreshOrdersBtn").addEventListener("click", fetchOrders);
+
+      document.getElementById("adminSearch").addEventListener("input", (e) => {
+        renderTable(e.target.value.trim());
+      });
+
+      document.getElementById("openNewProductBtn").addEventListener("click", () => {
+        document.getElementById("modalTitle").textContent = "Agregar Producto Nuevo a Supabase";
+        document.getElementById("productForm").reset();
+        document.getElementById("editProductId").value = "";
+        document.getElementById("editModal").classList.remove("hidden");
+      });
+
+      const closeModal = () => document.getElementById("editModal").classList.add("hidden");
+      document.getElementById("closeEditModalBtn").addEventListener("click", closeModal);
+      document.getElementById("cancelModalBtn").addEventListener("click", closeModal);
+
+      // Guardar / Editar en Supabase
+      document.getElementById("productForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const id = document.getElementById("editProductId").value || "prod-" + Date.now();
+        const titulo = document.getElementById("editTitle").value.trim();
+        const categoria = document.getElementById("editCategory").value.trim();
+        const marca = document.getElementById("editMarca").value.trim() || null;
+        const image = document.getElementById("editImage").value.trim();
+        const precio_unitario = parseFloat(document.getElementById("editPrice").value) || 0;
+        const precio_mayor = parseFloat(document.getElementById("editMayorPrice").value) || precio_unitario;
+        const precio_docena = parseFloat(document.getElementById("editDocenaPrice").value) || precio_mayor;
+        const descripcion = document.getElementById("editDescription").value.trim();
+
+        // Al editar se conservan las demás fotos y el estado agotado/disponible
+        const existing = products.find(x => x.id === id);
+        const oldImgs = existing ? (existing.imagenes || []) : [];
+        let imagenes;
+        if (image) {
+          imagenes = [image, ...oldImgs.slice(1).filter(u => u !== image)];
+        } else {
+          imagenes = oldImgs.length ? oldImgs.slice(1) : ["https://via.placeholder.com/500"];
+        }
+
+        const productPayload = {
+          id,
+          titulo,
+          categoria,
+          marca,
+          precio_unitario,
+          precio_mayor,
+          precio_docena,
+          descripcion,
+          imagenes,
+          disponible: existing ? existing.disponible !== false : true
+        };
+
+        if (sb) {
+          const { error } = await sb.from('productos').upsert(productPayload);
+          if (error) {
+            alert("Error guardando en Supabase: " + error.message);
+            return;
+          }
+        }
+
+        closeModal();
+        await fetchProducts();
+      });
+    }
+
+    window.editProduct = (id) => {
+      const p = products.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById("modalTitle").textContent = "Editar en Supabase: " + (p.titulo || p.title);
+      document.getElementById("editProductId").value = p.id;
+      document.getElementById("editTitle").value = p.titulo || p.title || "";
+      document.getElementById("editCategory").value = p.categoria || p.category || "";
+      document.getElementById("editMarca").value = p.marca || "";
+      const imgs = p.imagenes || p.images || [];
+      document.getElementById("editImage").value = imgs[0] || "";
+      document.getElementById("editPrice").value = p.precio_unitario || p.price || 0;
+      document.getElementById("editMayorPrice").value = p.precio_mayor || p.mayor_price || p.precio_unitario || p.price || 0;
+      document.getElementById("editDocenaPrice").value = p.precio_docena || p.docena_price || p.precio_mayor || p.mayor_price || 0;
+      document.getElementById("editDescription").value = p.descripcion || p.description || "";
+      document.getElementById("editModal").classList.remove("hidden");
+    };
+
+    window.toggleAvailable = async (id) => {
+      const p = products.find(x => x.id === id);
+      if (!p || !sb) return;
+      const nuevo = p.disponible === false;
+      const { error } = await sb.from('productos').update({ disponible: nuevo }).eq('id', id);
+      if (error) {
+        alert("Error al cambiar el estado: " + error.message);
+        return;
+      }
+      p.disponible = nuevo;
+      renderTable(document.getElementById("adminSearch").value.trim());
+    };
+
+    window.deleteProduct = async (id) => {
+      if (confirm("¿Estás seguro de eliminar este producto de la base de datos de Supabase?")) {
+        if (sb) {
+          const { error } = await sb.from('productos').delete().eq('id', id);
+          if (error) {
+            alert("Error al eliminar: " + error.message);
+            return;
+          }
+        }
+        await fetchProducts();
+      }
+    };
+  </script>
+</body>
+</html>

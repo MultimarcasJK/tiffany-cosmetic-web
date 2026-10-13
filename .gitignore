@@ -1,0 +1,14 @@
+# Entorno y scripts temporales
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+*.log
+
+# Scripts de migración / pruebas internas (no requeridos en el servidor web público)
+test_integrity.py
+download_images.py
+parse_products.py
+sync_to_supabase.py
+products_export_1.csv
+*.sql
