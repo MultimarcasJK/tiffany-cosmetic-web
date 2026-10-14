@@ -67,16 +67,36 @@
     <!-- ================= SECTION: PRODUCTOS ================= -->
     <div id="sectionProducts" class="space-y-6">
       <!-- Controls Bar -->
-      <div class="bg-white p-4 rounded-2xl border border-[#e9bfdf] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div class="relative w-full sm:w-80">
+      <div class="bg-white p-4 rounded-2xl border border-[#e9bfdf] shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
+        <!-- Search Input -->
+        <div class="relative w-full lg:w-72">
           <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"></i>
           <input type="text" id="adminSearch" placeholder="Buscar por nombre o categoría..." 
                  class="w-full pl-9 pr-3 py-2 text-xs border border-stone-200 rounded-xl bg-stone-50 focus:bg-white focus:outline-none focus:border-pink-500">
         </div>
 
-        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <!-- Status Filter Buttons (Todos, Disponibles, Agotados/Ocultos) -->
+        <div class="flex items-center bg-[#fdf3f8] p-1 rounded-xl border border-[#e9bfdf] text-xs font-semibold gap-1 self-stretch sm:self-auto overflow-x-auto justify-center">
+          <button id="filterStatusAll" class="px-3 py-1.5 rounded-lg bg-pink-600 text-white font-bold transition-all shadow-xs flex items-center gap-1.5 whitespace-nowrap">
+            <span>Todos</span>
+            <span id="countAllBadge" class="bg-pink-700/60 text-white text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+          </button>
+          <button id="filterStatusAvailable" class="px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Disponibles</span>
+            <span id="countAvailableBadge" class="bg-stone-200 text-stone-700 text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+          </button>
+          <button id="filterStatusHidden" class="px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+            <span>Agotados / Ocultos</span>
+            <span id="countHiddenBadge" class="bg-stone-200 text-stone-700 text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+          </button>
+        </div>
+
+        <!-- Count & Add Button -->
+        <div class="flex items-center gap-3 w-full lg:w-auto justify-end">
           <span id="productTotalBadge" class="text-xs font-bold text-stone-500">Cargando productos...</span>
-          <button id="openNewProductBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-md shadow-pink-600/20">
+          <button id="openNewProductBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-md shadow-pink-600/20 whitespace-nowrap">
             <i data-lucide="plus" class="w-4 h-4"></i>
             <span>Agregar Producto Nuevo</span>
           </button>
@@ -244,6 +264,7 @@
     let sb = null;
     let products = [];
     let orders = [];
+    let currentStatusFilter = 'all';
 
     document.addEventListener("DOMContentLoaded", async () => {
       // 1. Inicializar Supabase (necesario antes de autenticar)
@@ -389,9 +410,44 @@
       }
     }
 
-    function renderTable(filterQuery = "") {
+    function updateFilterBadges() {
+      const total = products.length;
+      const avail = products.filter(p => p.disponible !== false).length;
+      const hidden = products.filter(p => p.disponible === false).length;
+
+      const countAll = document.getElementById("countAllBadge");
+      const countAvail = document.getElementById("countAvailableBadge");
+      const countHidden = document.getElementById("countHiddenBadge");
+
+      if (countAll) countAll.textContent = total;
+      if (countAvail) countAvail.textContent = avail;
+      if (countHidden) countHidden.textContent = hidden;
+
+      const btnAll = document.getElementById("filterStatusAll");
+      const btnAvail = document.getElementById("filterStatusAvailable");
+      const btnHidden = document.getElementById("filterStatusHidden");
+
+      const activeClass = "px-3 py-1.5 rounded-lg bg-pink-600 text-white font-bold transition-all shadow-xs flex items-center gap-1.5 whitespace-nowrap";
+      const inactiveClass = "px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5 whitespace-nowrap";
+
+      if (btnAll) btnAll.className = currentStatusFilter === 'all' ? activeClass : inactiveClass;
+      if (btnAvail) btnAvail.className = currentStatusFilter === 'available' ? activeClass : inactiveClass;
+      if (btnHidden) btnHidden.className = currentStatusFilter === 'hidden' ? activeClass : inactiveClass;
+    }
+
+    function renderTable(filterQuery = null) {
+      if (filterQuery === null) {
+        const input = document.getElementById("adminSearch");
+        filterQuery = input ? input.value.trim() : "";
+      }
+      updateFilterBadges();
+
       const tbody = document.getElementById("productsTableBody");
       const filtered = products.filter(p => {
+        const isAgotado = p.disponible === false;
+        if (currentStatusFilter === 'available' && isAgotado) return false;
+        if (currentStatusFilter === 'hidden' && !isAgotado) return false;
+
         if (!filterQuery) return true;
         const q = filterQuery.toLowerCase();
         const title = (p.titulo || p.title || "").toLowerCase();
@@ -400,9 +456,14 @@
         return title.includes(q) || cat.includes(q) || marca.includes(q);
       });
 
-      const agotados = filtered.filter(p => p.disponible === false).length;
-      document.getElementById("productTotalBadge").textContent =
-        `${filtered.length} productos en catálogo` + (agotados ? ` · ${agotados} agotados (ocultos en la tienda)` : "");
+      const totalBadge = document.getElementById("productTotalBadge");
+      if (totalBadge) {
+        if (filtered.length === products.length) {
+          totalBadge.innerHTML = `<span class="text-emerald-700 font-bold">● ${products.length} productos (Nube Supabase)</span>`;
+        } else {
+          totalBadge.innerHTML = `<span class="text-pink-600 font-bold">● Mostrando ${filtered.length} de ${products.length}</span>`;
+        }
+      }
 
       if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-stone-400">No se encontraron productos.</td></tr>`;
@@ -519,6 +580,20 @@
       });
 
       document.getElementById("refreshOrdersBtn").addEventListener("click", fetchOrders);
+
+      // Filtros de estado de productos
+      document.getElementById("filterStatusAll").addEventListener("click", () => {
+        currentStatusFilter = 'all';
+        renderTable();
+      });
+      document.getElementById("filterStatusAvailable").addEventListener("click", () => {
+        currentStatusFilter = 'available';
+        renderTable();
+      });
+      document.getElementById("filterStatusHidden").addEventListener("click", () => {
+        currentStatusFilter = 'hidden';
+        renderTable();
+      });
 
       document.getElementById("adminSearch").addEventListener("input", (e) => {
         renderTable(e.target.value.trim());
