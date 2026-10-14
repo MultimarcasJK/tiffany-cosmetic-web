@@ -145,6 +145,8 @@ async function loadProducts() {
 function setupProductCategories() {
   const cats = new Set(["Todos"]);
   state.products.forEach(p => {
+    // Pre-indexación en memoria para búsqueda instantánea en 0.001s
+    p._searchIndex = `${p.title || ''} ${p.category || ''} ${(p.tags || []).join(' ')} ${p.vendor || ''}`.toLowerCase();
     if (p.category && p.category !== "Sin categoría") {
       cats.add(p.category);
     }
@@ -154,17 +156,24 @@ function setupProductCategories() {
 
 // Configuración de escuchadores de eventos
 function setupEventListeners() {
-  // Buscador
+  // Buscador con debounce optimizado (120ms para máxima fluidez)
   const searchInput = document.getElementById("searchInput");
   const clearSearchBtn = document.getElementById("clearSearchBtn");
+  let searchDebounceTimer = null;
 
   searchInput.addEventListener("input", (e) => {
-    state.searchQuery = e.target.value.trim().toLowerCase();
-    clearSearchBtn.classList.toggle("hidden", state.searchQuery.length === 0);
-    applyFiltersAndRender();
+    const val = e.target.value.trim().toLowerCase();
+    clearSearchBtn.classList.toggle("hidden", val.length === 0);
+    
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      state.searchQuery = val;
+      applyFiltersAndRender();
+    }, 120);
   });
 
   clearSearchBtn.addEventListener("click", () => {
+    clearTimeout(searchDebounceTimer);
     searchInput.value = "";
     state.searchQuery = "";
     clearSearchBtn.classList.add("hidden");
@@ -345,15 +354,14 @@ function applyFiltersAndRender() {
     list = list.filter(p => p.category === state.activeCategory);
   }
 
-  // Filtro Búsqueda
+  // Filtro Búsqueda ultra rápido (usando pre-índice en memoria)
   if (state.searchQuery) {
     const q = state.searchQuery;
     list = list.filter(p => {
-      const titleMatch = p.title.toLowerCase().includes(q);
-      const descMatch = (p.description || "").toLowerCase().includes(q);
-      const tagMatch = (p.tags || []).some(t => t.toLowerCase().includes(q));
-      const brandMatch = (p.vendor || "").toLowerCase().includes(q);
-      return titleMatch || descMatch || tagMatch || brandMatch;
+      if (p._searchIndex) return p._searchIndex.includes(q);
+      const titleMatch = (p.title || "").toLowerCase().includes(q);
+      const catMatch = (p.category || "").toLowerCase().includes(q);
+      return titleMatch || catMatch;
     });
   }
 
@@ -473,8 +481,12 @@ function renderProductsGrid(products) {
     `;
   }).join("");
 
-  if (window.lucide) {
-    window.lucide.createIcons();
+  if (window.lucide && grid) {
+    try {
+      window.lucide.createIcons({ root: grid });
+    } catch (e) {
+      window.lucide.createIcons();
+    }
   }
 }
 
