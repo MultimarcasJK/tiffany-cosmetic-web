@@ -1,10 +1,10 @@
 // ==========================================================================
-// GUÍA OFICIAL DE AROMAS - CREMAS CORPORALES VALQUIN
+// GUÍA OFICIAL DE AROMAS - CREMAS CORPORALES VALQUIN (19 AROMAS)
 // Tiffany Cosmetic EC
 // ==========================================================================
 
 const VALQUIN_CATALOGO_DEFAULT = [
-  // ----------------- CABALLEROS (7 AROMAS) -----------------
+  // ----------------- CABALLEROS (10 AROMAS) -----------------
   {
     id: "mediterraneo-h",
     nombre: "MEDITERRÁNEO",
@@ -89,8 +89,44 @@ const VALQUIN_CATALOGO_DEFAULT = [
     fondo: "Ámbar y pachulí.",
     disponible: true
   },
+  {
+    id: "rio-janeiro-h",
+    nombre: "RÍO DE JANEIRO (Hombre)",
+    genero: "hombre",
+    generoLabel: "Caballero",
+    familia: "Cítrico Acuático & Amaderado Tropical",
+    icono: "🌊",
+    salida: "Lima brasileña, bergamota fresca y brisa marina tropical.",
+    corazon: "Lavanda ligera, notas verdes y un toque chispeante de jengibre.",
+    fondo: "Madera de cedro, ámbar cálido y almizcle limpio.",
+    disponible: true
+  },
+  {
+    id: "deja-vu-h",
+    nombre: "DÉJÀ VU",
+    genero: "hombre",
+    generoLabel: "Caballero",
+    familia: "Oriental Especiado & Cuero Distinguido",
+    icono: "🎩",
+    salida: "Cardamomo y nuez moscada especiada.",
+    corazon: "Cuero elegante y lavanda aromática refinada.",
+    fondo: "Vainilla cremosa, pachulí y ládano ambarado.",
+    disponible: true
+  },
+  {
+    id: "natores-h",
+    nombre: "NATORES (Aroma de Dioses)",
+    genero: "hombre",
+    generoLabel: "Caballero",
+    familia: "Amaderado Licoroso & Aromático Espartano",
+    icono: "⚔️",
+    salida: "Helado refrescante, anís, regaliz y ajenjo.",
+    corazon: "Ron añejo, notas amaderadas, flor de azahar, rosa, almendra y azúcar tostada.",
+    fondo: "Madera de cedro, ládano, vainilla profunda y almizcle potente.",
+    disponible: true
+  },
 
-  // ----------------- DAMAS (6 AROMAS) -----------------
+  // ----------------- DAMAS (9 AROMAS) -----------------
   {
     id: "aphrodite-m",
     nombre: "APHRODITE",
@@ -161,6 +197,42 @@ const VALQUIN_CATALOGO_DEFAULT = [
     salida: "Flor de azahar del naranjo, cáscara de naranja y mandarina.",
     corazon: "Vainilla y sal marina.",
     fondo: "Ámbar gris, madera de cachemira y sándalo.",
+    disponible: true
+  },
+  {
+    id: "rio-janeiro-m",
+    nombre: "RÍO DE JANEIRO (Mujer)",
+    genero: "mujer",
+    generoLabel: "Dama",
+    familia: "Gourmand Tropical & Floral Cálido",
+    icono: "🌴",
+    salida: "Pistacho, almendra dulce y acordes frutales cítricos tropicales.",
+    corazon: "Pétalos de jazmín, heliotropo y toques solares envolventes.",
+    fondo: "Vainilla dulce, caramelo salado, sándalo y almizcle suave.",
+    disponible: true
+  },
+  {
+    id: "ikigai-m",
+    nombre: "IKIGAI",
+    genero: "mujer",
+    generoLabel: "Dama",
+    familia: "Cítrico Zen / Floral Fresco & Relajante",
+    icono: "🎍",
+    salida: "Madera de amberwood y petitgrain vivaz.",
+    corazon: "Yuzu japonés fresco, equilibrado y aromático.",
+    fondo: "Pomelo dulce y almizcle blanco sedoso.",
+    disponible: true
+  },
+  {
+    id: "venecia-m",
+    nombre: "VENECIA",
+    genero: "mujer",
+    generoLabel: "Dama / Unisex",
+    familia: "Gourmand Envolvente & Dulce Ambarado",
+    icono: "🎭",
+    salida: "Acordes azucarados chispeantes, bayas rojas y cítricos suaves.",
+    corazon: "Flores blancas delicadas, crema batida y vainilla sedosa.",
+    fondo: "Ámbar cálido, haba tonka y almizcle aterciopelado.",
     disponible: true
   }
 ];

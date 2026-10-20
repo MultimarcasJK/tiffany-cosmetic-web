@@ -21,7 +21,8 @@ let state = {
   modalQty: 1,
   selectedValquinAromaId: null,
   selectedValquinAromaObj: null,
-  valquinMultiQtys: {}
+  valquinMultiQtys: {},
+  tonosMultiQtys: {}
 };
 
 // Determinar el nivel de precio según la cantidad
@@ -116,7 +117,8 @@ async function loadProducts() {
             docena_price: parseFloat(p.precio_docena) || parseFloat(p.precio_mayor) || parseFloat(p.precio_unitario) || 0,
             images: imgs.length > 0 ? imgs : [CONFIG.defaultImage],
             available: p.disponible !== false,
-            vendor: p.marca || ""
+            vendor: p.marca || "",
+            tonos: p.tonos || []
           };
         });
         console.log(`Cargados ${state.products.length} productos directamente desde Supabase en la nube`);
@@ -334,6 +336,32 @@ function setupEventListeners() {
 
       if (addedCount > 0) {
         showToast(`¡Agregadas ${addedCount} ${addedCount === 1 ? 'Crema Valquin' : 'Cremas Valquin'} variadas al pedido! ✨`);
+        closeProductModal();
+      }
+      return;
+    }
+
+    const hasTonos = Array.isArray(state.selectedProduct.tonos) && state.selectedProduct.tonos.length > 0;
+    if (hasTonos) {
+      const selectedEntries = Object.entries(state.tonosMultiQtys).filter(([_, qty]) => qty > 0);
+      const totalSelected = selectedEntries.reduce((sum, [_, q]) => sum + q, 0);
+
+      if (totalSelected === 0) {
+        showToast("⚠️ Elige al menos 1 unidad con el botón [+] de tu tono favorito.");
+        return;
+      }
+
+      let addedCount = 0;
+      selectedEntries.forEach(([tonoId, qty]) => {
+        const tonosList = state.selectedProduct.tonos;
+        const tonoObj = tonosList.find(t => (t.id || t.nombre || t) === tonoId);
+        const tonoName = tonoObj ? (typeof tonoObj === 'object' ? tonoObj.nombre : tonoObj) : tonoId;
+        addToCart(state.selectedProduct, qty, { id: tonoId, nombre: tonoName, isTono: true }, true);
+        addedCount += qty;
+      });
+
+      if (addedCount > 0) {
+        showToast(`¡Agregadas ${addedCount} unidades variadas de ${state.selectedProduct.title} al pedido! ✨`);
         closeProductModal();
       }
       return;
@@ -575,9 +603,10 @@ function openProductModal(product) {
   vendorEl.textContent = product.vendor || "";
   vendorEl.classList.toggle("hidden", !product.vendor);
 
-  // Manejo de Descripción / Guía Olfativa Valquin
+  // Manejo de Descripción / Guía Olfativa Valquin / Tonos
   const isValquin = (product.id && product.id.includes("valquin")) || 
                     (product.title && product.title.toLowerCase().includes("valquin"));
+  const hasTonos = Array.isArray(product.tonos) && product.tonos.length > 0;
   const descEl = document.getElementById("modalProductDesc");
   const descTitle = document.getElementById("modalDescTitle");
   const valquinContainer = document.getElementById("valquinSpecialContainer");
@@ -586,11 +615,16 @@ function openProductModal(product) {
   const addToCartBtnText = document.getElementById("modalAddToCartBtnText");
 
   state.valquinMultiQtys = {};
+  state.tonosMultiQtys = {};
 
   if (isValquin) {
     if (standardQtyControls) standardQtyControls.classList.add("hidden");
     if (valquinMultiSummary) valquinMultiSummary.classList.remove("hidden");
     renderValquinAromasGuide(product);
+  } else if (hasTonos) {
+    if (standardQtyControls) standardQtyControls.classList.add("hidden");
+    if (valquinMultiSummary) valquinMultiSummary.classList.remove("hidden");
+    renderProductTonosGuide(product);
   } else {
     if (descTitle) descTitle.textContent = "Descripción:";
     descEl.classList.remove("hidden");
@@ -733,7 +767,8 @@ function closeProductModal() {
 // ----------------- GESTIÓN DEL CARRITO CON ESCALA AUTOMÁTICA -----------------
 
 function addToCart(product, qty = 1, aroma = null, silent = false) {
-  const cartItemId = aroma ? `${product.id}__${aroma.id}` : product.id;
+  const variantId = aroma ? (aroma.id || aroma.nombre) : null;
+  const cartItemId = variantId ? `${product.id}__${variantId}` : product.id;
   const existing = state.cart.find(item => item.id === cartItemId);
   if (existing) {
     existing.qty += qty;
@@ -744,6 +779,7 @@ function addToCart(product, qty = 1, aroma = null, silent = false) {
       title: product.title,
       aroma: aroma ? aroma.nombre : null,
       aromaGenero: aroma ? aroma.generoLabel : null,
+      isTono: aroma ? Boolean(aroma.isTono) : false,
       price: product.price || 0,
       mayor_price: product.mayor_price || product.price || 0,
       docena_price: product.docena_price || product.mayor_price || product.price || 0,
@@ -792,16 +828,18 @@ function updateCartUI() {
 
   const totalCount = state.cart.reduce((acc, item) => acc + item.qty, 0);
   
-  // Total de cremas Valquin en el carrito para escala por volumen unificada
-  const valquinTotalQty = state.cart
-    .filter(item => (item.baseProductId || item.id).includes("valquin"))
-    .reduce((sum, item) => sum + item.qty, 0);
+  // Totales acumulados por producto base para que los tonos/aromas sumen para precio mayorista
+  const baseProductTotals = {};
+  state.cart.forEach(item => {
+    const baseId = item.baseProductId || item.id;
+    baseProductTotals[baseId] = (baseProductTotals[baseId] || 0) + item.qty;
+  });
 
   // Calcular total dinámico según la escala de 3 precios de cada producto
   let grandTotal = 0;
   state.cart.forEach(item => {
-    const isValquin = (item.baseProductId || item.id).includes("valquin");
-    const effectiveQty = isValquin ? valquinTotalQty : item.qty;
+    const baseId = item.baseProductId || item.id;
+    const effectiveQty = baseProductTotals[baseId] || item.qty;
     const tier = getItemTier(item, effectiveQty);
     grandTotal += tier.price * item.qty;
   });
@@ -824,16 +862,16 @@ function updateCartUI() {
     `;
   } else {
     listEl.innerHTML = state.cart.map(item => {
-      const isValquin = (item.baseProductId || item.id).includes("valquin");
-      const effectiveQty = isValquin ? valquinTotalQty : item.qty;
+      const baseId = item.baseProductId || item.id;
+      const effectiveQty = baseProductTotals[baseId] || item.qty;
       const tier = getItemTier(item, effectiveQty);
       const subtotal = tier.price * item.qty;
 
       // Mensaje de sugerencia para desbloquear el siguiente nivel
       let hintText = "";
-      const currentQty = isValquin ? valquinTotalQty : item.qty;
+      const currentQty = effectiveQty;
       if (currentQty === 2) {
-        hintText = `💡 ¡Agrega 1 ${isValquin ? 'crema Valquin más' : 'más'} para pagar precio Al Mayor ($${item.mayor_price.toFixed(2)} c/u)!`;
+        hintText = `💡 ¡Agrega 1 más de este producto para pagar precio Al Mayor ($${item.mayor_price.toFixed(2)} c/u)!`;
       } else if (currentQty >= 3 && currentQty < 12 && item.docena_price < item.mayor_price) {
         const remaining = 12 - currentQty;
         hintText = `🔥 ¡Lleva ${remaining} más para tarifa Docena ($${item.docena_price.toFixed(2)} c/u)!`;
@@ -850,7 +888,7 @@ function updateCartUI() {
               ${item.aroma ? `
                 <div class="mt-0.5">
                   <span class="inline-flex items-center gap-1 text-[10px] font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100">
-                    ✨ Aroma: ${item.aroma}
+                    ${item.isTono ? '🎨 Tono:' : '✨ Aroma:'} ${item.aroma}
                   </span>
                 </div>
               ` : ''}
@@ -954,19 +992,23 @@ function handleWhatsAppCheckout() {
   let grandTotal = 0;
   let itemsText = "";
 
-  const valquinTotalQty = state.cart
-    .filter(item => (item.baseProductId || item.id).includes("valquin"))
-    .reduce((sum, item) => sum + item.qty, 0);
+  // Totales por producto base para que los tonos/aromas sumen al por mayor en WhatsApp
+  const baseProductTotals = {};
+  state.cart.forEach(item => {
+    const baseId = item.baseProductId || item.id;
+    baseProductTotals[baseId] = (baseProductTotals[baseId] || 0) + item.qty;
+  });
 
   state.cart.forEach((item) => {
-    const isValquin = (item.baseProductId || item.id).includes("valquin");
-    const effectiveQty = isValquin ? valquinTotalQty : item.qty;
+    const baseId = item.baseProductId || item.id;
+    const effectiveQty = baseProductTotals[baseId] || item.qty;
     const tier = getItemTier(item, effectiveQty);
     const itemSubtotal = tier.price * item.qty;
     grandTotal += itemSubtotal;
 
     if (item.aroma) {
-      itemsText += `• ${item.qty}x ${item.title}\n   ↳ Aroma: *${item.aroma}*\n   ↳ Tarifa: ${tier.label} ($${tier.price.toFixed(2)} c/u) = *$${itemSubtotal.toFixed(2)}*\n`;
+      const label = item.isTono ? "Tono" : "Aroma";
+      itemsText += `• ${item.qty}x ${item.title}\n   ↳ ${label}: *${item.aroma}*\n   ↳ Tarifa: ${tier.label} ($${tier.price.toFixed(2)} c/u) = *$${itemSubtotal.toFixed(2)}*\n`;
     } else {
       itemsText += `• ${item.qty}x ${item.title}\n   ↳ Tarifa: ${tier.label} ($${tier.price.toFixed(2)} c/u) = *$${itemSubtotal.toFixed(2)}*\n`;
     }
@@ -1389,4 +1431,186 @@ function closeAromaAgotadoAlert() {
   setTimeout(() => {
     modal.classList.add("hidden");
   }, 150);
+}
+
+// ----------------- EXPERIENCIA DE TONOS / VARIANTES GENERAL -----------------
+
+function renderProductTonosGuide(product) {
+  const container = document.getElementById("valquinSpecialContainer");
+  const descEl = document.getElementById("modalProductDesc");
+  const descTitle = document.getElementById("modalDescTitle");
+  const summaryBox = document.getElementById("valquinMultiSummaryBox");
+  const totalCountBadge = document.getElementById("valquinMultiTotalCountBadge");
+  const itemsListEl = document.getElementById("valquinMultiItemsList");
+  const tierBadge = document.getElementById("valquinMultiTierBadge");
+  const addBtnText = document.getElementById("modalAddToCartBtnText");
+
+  if (!container) return;
+
+  container.classList.remove("hidden");
+  if (summaryBox) summaryBox.classList.remove("hidden");
+  if (descTitle) descTitle.textContent = "🎨 Tonos Disponibles & Cantidades:";
+
+  if (descEl) {
+    descEl.innerHTML = `
+      <div class="p-2.5 rounded-xl bg-pink-50/60 border border-pink-200/80 text-stone-700 space-y-1">
+        <p class="font-medium">✨ <strong>Tonos / Variantes disponibles:</strong></p>
+        <p class="text-[11px] text-pink-700 font-semibold">👇 Puedes combinar diferentes tonos en tu pedido. Usa los botones <strong>[+]</strong> y <strong>[-]</strong> para sumar las cantidades de cada uno:</p>
+      </div>
+    `;
+  }
+
+  const tonos = (product.tonos || []).map((t, idx) => {
+    if (typeof t === 'string') {
+      return { id: "tono-" + idx, nombre: t, disponible: true };
+    }
+    return {
+      id: t.id || ("tono-" + idx),
+      nombre: t.nombre || "Tono " + (idx + 1),
+      disponible: t.disponible !== false
+    };
+  });
+
+  container.innerHTML = `
+    <div id="productTonosCardsList" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+      <!-- Rellenado dinámicamente -->
+    </div>
+  `;
+
+  const updateTonosSummaryUI = () => {
+    const selectedEntries = Object.entries(state.tonosMultiQtys).filter(([_, qty]) => qty > 0);
+    const totalQty = selectedEntries.reduce((sum, [_, q]) => sum + q, 0);
+
+    if (totalCountBadge) {
+      totalCountBadge.textContent = `${totalQty} ${totalQty === 1 ? 'unidad' : 'unidades'}`;
+    }
+
+    if (totalQty === 0) {
+      if (itemsListEl) {
+        itemsListEl.innerHTML = `<span class="text-stone-400 italic text-[10px]">Toca [+] en los tonos que desees arriba para armar tu pedido variado.</span>`;
+      }
+      if (tierBadge) tierBadge.classList.add("hidden");
+      if (addBtnText) addBtnText.textContent = "Agregar al Pedido (Elige tonos)";
+      const priceEl = document.getElementById("modalProductPrice");
+      const compareEl = document.getElementById("modalComparePrice");
+      if (priceEl) priceEl.textContent = `$${(product.price || 0).toFixed(2)}`;
+      if (compareEl) {
+        compareEl.textContent = "(Unitario)";
+        compareEl.className = "text-xs font-bold px-2 py-0.5 rounded-full border bg-stone-100 text-stone-700 border-stone-200";
+      }
+      return;
+    }
+
+    const tier = getItemTier(product, totalQty);
+    const subtotal = tier.price * totalQty;
+
+    if (itemsListEl) {
+      itemsListEl.innerHTML = selectedEntries.map(([tonoId, qty]) => {
+        const t = tonos.find(x => x.id === tonoId);
+        const name = t ? t.nombre : tonoId;
+        return `
+          <div class="flex items-center justify-between py-1 border-b border-pink-100/60 last:border-b-0 text-xs">
+            <span class="font-semibold text-stone-800">${qty}x ${name}</span>
+            <span class="font-serif font-bold text-stone-700">$${(tier.price * qty).toFixed(2)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    if (tierBadge) {
+      tierBadge.classList.remove("hidden");
+      tierBadge.className = `text-[11px] p-2 rounded-xl font-bold text-center border ${tier.badgeClass}`;
+      if (totalQty >= 12) {
+        tierBadge.innerHTML = `🌟 ¡Tarifa Docena/Caja activada! <strong>$${tier.price.toFixed(2)} c/u</strong> (Total: $${subtotal.toFixed(2)})`;
+      } else if (totalQty >= 3) {
+        tierBadge.innerHTML = `🎉 ¡Precio al Mayor activado! <strong>$${tier.price.toFixed(2)} c/u</strong> (Total: $${subtotal.toFixed(2)})`;
+      } else {
+        const falta = 3 - totalQty;
+        tierBadge.innerHTML = `💡 Precio Unitario: $${tier.price.toFixed(2)} c/u. <em>¡Agrega ${falta} más para precio al mayor a $${(product.mayor_price || product.price).toFixed(2)}!</em>`;
+      }
+    }
+
+    if (addBtnText) {
+      addBtnText.textContent = `Agregar ${totalQty} ${totalQty === 1 ? 'unidad' : 'unidades'} ($${subtotal.toFixed(2)})`;
+    }
+
+    const priceEl = document.getElementById("modalProductPrice");
+    const compareEl = document.getElementById("modalComparePrice");
+    if (priceEl) priceEl.textContent = `$${tier.price.toFixed(2)}`;
+    if (compareEl) {
+      compareEl.textContent = `(${tier.label})`;
+      compareEl.className = `text-xs font-bold px-2 py-0.5 rounded-full border ${tier.badgeClass}`;
+    }
+  };
+
+  const renderTonoCards = () => {
+    const listEl = document.getElementById("productTonosCardsList");
+    if (!listEl) return;
+
+    listEl.innerHTML = tonos.map(t => {
+      const qty = state.tonosMultiQtys[t.id] || 0;
+      const isSelected = qty > 0;
+      const isAgotado = !t.disponible;
+
+      return `
+        <div class="tono-card border ${isSelected ? 'border-pink-500 bg-pink-50/50 shadow-xs ring-1 ring-pink-400' : isAgotado ? 'border-red-200 bg-red-50/30 opacity-75' : 'border-stone-200 bg-white hover:border-pink-300'} rounded-xl p-2.5 transition-all select-none" data-tono-id="${t.id}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <span class="w-2.5 h-2.5 rounded-full ${isAgotado ? 'bg-red-400' : 'bg-pink-500'} shrink-0"></span>
+              <div class="truncate flex-1">
+                <span class="font-bold text-xs ${isAgotado ? 'text-stone-500 line-through' : 'text-stone-900'}">${t.nombre}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${isAgotado ? `
+                <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">
+                  Agotado ❌
+                </span>
+              ` : `
+                <div class="flex items-center border ${isSelected ? 'border-pink-400 bg-white' : 'border-stone-200 bg-stone-50'} rounded-lg overflow-hidden shadow-xs">
+                  <button type="button" class="tono-minus-btn px-2.5 py-1 text-xs font-bold ${qty > 0 ? 'text-pink-700 hover:bg-pink-100' : 'text-stone-300 cursor-not-allowed'} transition-colors" ${qty === 0 ? 'disabled' : ''}>
+                    -
+                  </button>
+                  <span class="tono-qty-val px-2 py-1 text-xs font-black min-w-[24px] text-center ${isSelected ? 'text-pink-700 bg-pink-50' : 'text-stone-600'}">
+                    ${qty}
+                  </span>
+                  <button type="button" class="tono-plus-btn px-2.5 py-1 text-xs font-bold text-pink-700 hover:bg-pink-100 transition-colors">
+                    +
+                  </button>
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    listEl.querySelectorAll(".tono-plus-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const card = btn.closest(".tono-card");
+        const tonoId = card.dataset.tonoId;
+        state.tonosMultiQtys[tonoId] = (state.tonosMultiQtys[tonoId] || 0) + 1;
+        renderTonoCards();
+        updateTonosSummaryUI();
+      });
+    });
+
+    listEl.querySelectorAll(".tono-minus-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const card = btn.closest(".tono-card");
+        const tonoId = card.dataset.tonoId;
+        if ((state.tonosMultiQtys[tonoId] || 0) > 0) {
+          state.tonosMultiQtys[tonoId]--;
+          renderTonoCards();
+          updateTonosSummaryUI();
+        }
+      });
+    });
+  };
+
+  renderTonoCards();
+  updateTonosSummaryUI();
 }

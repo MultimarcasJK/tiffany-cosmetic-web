@@ -96,8 +96,10 @@
         <!-- Count & Add Button -->
         <div class="flex items-center gap-2.5 w-full lg:w-auto justify-end flex-wrap">
           <span id="productTotalBadge" class="text-xs font-bold text-stone-500">Cargando productos...</span>
-          <button id="openValquinAromasAdminBtn" type="button" class="px-3.5 py-2 bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-xs whitespace-nowrap">
-            <span>🌸 Aromas Valquin (13)</span>
+          <button id="openTonosAromasSelectorBtn" type="button" class="px-3.5 py-2 bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-xs whitespace-nowrap">
+            <i data-lucide="palette" class="w-4 h-4 text-pink-600"></i>
+            <span>Tonos y Aromas</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-pink-500"></i>
           </button>
           <button id="openNewProductBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-md shadow-pink-600/20 whitespace-nowrap">
             <i data-lucide="plus" class="w-4 h-4"></i>
@@ -243,6 +245,15 @@
         </div>
 
         <div>
+          <label class="block font-bold text-stone-700 mb-1 flex items-center justify-between">
+            <span>Tonos / Variantes (Opcional)</span>
+            <span class="text-[10px] text-pink-600 font-semibold">Separados por comas</span>
+          </label>
+          <input type="text" id="editTonos" placeholder="Ej: Tono 01 - Claro, Tono 02 - Medio, Tono 03 - Canela" class="w-full border border-stone-200 rounded-lg p-2.5">
+          <p class="text-[10px] text-stone-400 mt-1">Si colocas tonos, en la tienda la clienta podrá elegir cantidades de cada tono por separado.</p>
+        </div>
+
+        <div>
           <label class="block font-bold text-stone-700 mb-1">Descripción</label>
           <textarea id="editDescription" rows="4" class="w-full border border-stone-200 rounded-lg p-2.5"></textarea>
         </div>
@@ -257,6 +268,102 @@
     </div>
   </div>
 
+  <!-- MODAL SELECTOR DE PRODUCTOS CON TONOS Y AROMAS -->
+  <div id="tonosAromasSelectorModal" class="fixed inset-0 z-50 overflow-y-auto hidden flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs">
+    <div class="relative bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-pink-200 space-y-4 max-h-[85vh] flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-pink-100 text-pink-700 flex items-center justify-center font-bold">
+            <i data-lucide="palette" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-stone-900 text-base">Tonos y Aromas de Productos</h3>
+            <p class="text-[11px] text-stone-500">Selecciona un producto de la lista para gestionar sus tonos o aromas.</p>
+          </div>
+        </div>
+        <button id="closeTonosAromasSelectorBtn" type="button" class="p-1 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Buscador rápido en el selector -->
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"></i>
+        <input type="text" id="tonosSelectorSearchInput" placeholder="Buscar producto en el catálogo..." 
+               class="w-full pl-9 pr-3 py-2 text-xs border border-stone-200 rounded-xl bg-stone-50 focus:bg-white focus:outline-none focus:border-pink-500">
+      </div>
+
+      <!-- Lista dinámica de productos -->
+      <div id="tonosProductsListContainer" class="overflow-y-auto flex-1 divide-y divide-stone-100 max-h-80 pr-1 space-y-1">
+        <!-- Rellenado dinámicamente -->
+      </div>
+
+      <!-- Footer -->
+      <div class="pt-3 border-t border-stone-100 flex items-center justify-between">
+        <span class="text-[11px] text-stone-400">💡 Al hacer clic en un producto se abrirá su panel de tonos/aromas.</span>
+        <button id="cancelTonosAromasSelectorBtn" type="button" class="px-4 py-2 border border-stone-200 rounded-xl text-stone-600 hover:bg-stone-50 font-semibold text-xs">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL GESTOR DE TONOS PARA CUALQUIER PRODUCTO -->
+  <div id="productoTonosAdminModal" class="fixed inset-0 z-50 overflow-y-auto hidden flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs">
+    <div class="relative bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-pink-200 space-y-4 max-h-[90vh] flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🎨</span>
+          <div>
+            <h3 id="productoTonosAdminTitle" class="font-bold text-stone-900 text-base">Control de Tonos / Variantes</h3>
+            <p id="productoTonosAdminSubtitle" class="text-[11px] text-stone-500">Activa o desactiva tonos en stock, o agrega nuevos tonos.</p>
+          </div>
+        </div>
+        <button id="closeProductoTonosAdminBtn" type="button" class="p-1 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Agregar nuevo tono rápido -->
+      <div class="bg-pink-50/60 p-3 rounded-xl border border-pink-100 space-y-2">
+        <label class="block text-stone-700 font-bold text-[11px]">Agregar un nuevo tono a este producto:</label>
+        <div class="flex gap-2">
+          <input type="text" id="newTonoInput" placeholder="Ej: Tono 04 - Canela Cálida" class="flex-1 bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-pink-500">
+          <button id="addTonoBtn" type="button" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Agregar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista de tonos -->
+      <div class="overflow-y-auto flex-1 pr-1 space-y-2">
+        <div class="flex items-center justify-between text-[11px] text-stone-500 font-medium px-1">
+          <span>Tonos configurados:</span>
+          <span id="tonosCountBadge" class="text-pink-600 font-bold">0 tonos</span>
+        </div>
+        <div id="productoTonosList" class="space-y-1.5 text-xs">
+          <!-- Rellenado dinámicamente -->
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="pt-3 border-t border-stone-100 flex items-center justify-between">
+        <span id="productoTonosSaveNotice" class="text-xs font-bold text-emerald-600 hidden">¡Tonos guardados con éxito!</span>
+        <div class="flex items-center gap-2 ml-auto">
+          <button id="cancelProductoTonosAdminBtn" type="button" class="px-4 py-2 border border-stone-200 rounded-xl text-stone-600 hover:bg-stone-50 font-semibold text-xs">
+            Cerrar
+          </button>
+          <button id="saveProductoTonosAdminBtn" type="button" class="px-5 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-pink-600/20">
+            <span>Guardar Tonos en Supabase</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DE GESTIÓN DE AROMAS VALQUIN (13 AROMAS) -->
   <div id="valquinAromasAdminModal" class="fixed inset-0 z-50 overflow-y-auto hidden flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs">
     <div class="relative bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-pink-200 space-y-4 max-h-[90vh] flex flex-col">
@@ -265,7 +372,7 @@
         <div class="flex items-center gap-2.5">
           <span class="text-2xl">🌸</span>
           <div>
-            <h3 class="font-bold text-stone-900 text-base">Control de Disponibilidad - Cremas Valquin (13 Aromas)</h3>
+            <h3 class="font-bold text-stone-900 text-base">Control de Disponibilidad - Cremas Valquin</h3>
             <p class="text-[11px] text-stone-500">Marca las fragancias que tienes en stock y desmarca las agotadas. Se actualiza en la tienda al instante.</p>
           </div>
         </div>
@@ -557,6 +664,7 @@
             <td class="py-2.5 px-4 font-semibold max-w-xs truncate ${agotado ? 'text-stone-400' : 'text-stone-900'}">
               ${p.marca ? `<div class="text-[10px] font-bold uppercase tracking-wider text-pink-600">${p.marca}</div>` : ''}
               ${title}
+              ${Array.isArray(p.tonos) && p.tonos.length ? `<span class="ml-1.5 px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full text-[10px] font-bold">🎨 ${p.tonos.length} tonos</span>` : ''}
               ${agotado ? `<span class="ml-1.5 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-bold">Agotado · oculto en la tienda</span>` : ''}
             </td>
             <td class="py-2.5 px-4 text-stone-600"><span class="px-2 py-0.5 bg-stone-100 rounded-full text-[10px] font-medium">${cat}</span></td>
@@ -691,6 +799,15 @@
         const precio_mayor = parseFloat(document.getElementById("editMayorPrice").value) || precio_unitario;
         const precio_docena = parseFloat(document.getElementById("editDocenaPrice").value) || precio_mayor;
         const descripcion = document.getElementById("editDescription").value.trim();
+        const rawTonos = document.getElementById("editTonos").value.trim();
+        let tonos = [];
+        if (rawTonos) {
+          tonos = rawTonos.split(",").map(t => t.trim()).filter(Boolean).map((t, i) => ({
+            id: "tono-" + (i + 1),
+            nombre: t,
+            disponible: true
+          }));
+        }
 
         // Al editar se conservan las demás fotos y el estado agotado/disponible
         const existing = products.find(x => x.id === id);
@@ -712,6 +829,7 @@
           precio_docena,
           descripcion,
           imagenes,
+          tonos: tonos.length ? tonos : (existing && existing.tonos ? existing.tonos : null),
           disponible: existing ? existing.disponible !== false : true
         };
 
@@ -726,6 +844,260 @@
         closeModal();
         await fetchProducts();
       });
+
+      // ================= SELECTOR GENERAL DE TONOS Y AROMAS =================
+      const selectorModal = document.getElementById("tonosAromasSelectorModal");
+      const openSelectorBtn = document.getElementById("openTonosAromasSelectorBtn");
+      const closeSelectorBtn = document.getElementById("closeTonosAromasSelectorBtn");
+      const cancelSelectorBtn = document.getElementById("cancelTonosAromasSelectorBtn");
+      const selectorSearchInput = document.getElementById("tonosSelectorSearchInput");
+      const listContainer = document.getElementById("tonosProductsListContainer");
+
+      const closeSelector = () => {
+        if (selectorModal) selectorModal.classList.add("hidden");
+      };
+
+      const renderTonosProductsList = (q = "") => {
+        if (!listContainer) return;
+        q = q.toLowerCase();
+
+        let html = "";
+        const vAromas = window.ValquinAromasManager ? window.ValquinAromasManager.getAromas() : [];
+        const vCount = vAromas.length || 19;
+
+        // 1. Cremas Valquin (Siempre destacada arriba si coincide o si no hay búsqueda)
+        if (!q || "cremas corporales valquin aromas".includes(q)) {
+          html += `
+            <div onclick="openValquinFromSelector()" class="p-3 rounded-2xl border-2 border-pink-300 bg-pink-50/70 hover:bg-pink-100/70 cursor-pointer flex items-center justify-between transition-all shadow-xs mb-2">
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="text-2xl p-1.5 bg-white rounded-xl shadow-xs">🌸</span>
+                <div class="truncate">
+                  <h4 class="font-bold text-xs text-stone-900 flex items-center gap-1.5">
+                    <span>Cremas Corporales Valquin</span>
+                    <span class="px-2 py-0.5 bg-pink-600 text-white text-[10px] rounded-full font-bold">${vCount} Aromas</span>
+                  </h4>
+                  <p class="text-[10px] text-pink-700">Fragancias de Dama y Caballero con control individual de stock.</p>
+                </div>
+              </div>
+              <button type="button" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-xs font-bold shrink-0 shadow-xs">
+                Gestionar Aromas
+              </button>
+            </div>
+          `;
+        }
+
+        // 2. Demás productos del catálogo
+        const otherProducts = products.filter(p => {
+          const title = (p.titulo || p.title || "").toLowerCase();
+          const isValquin = title.includes("valquin");
+          if (isValquin) return false;
+          if (!q) return true;
+          return title.includes(q) || (p.categoria || "").toLowerCase().includes(q);
+        });
+
+        if (otherProducts.length === 0 && !html) {
+          listContainer.innerHTML = `<p class="py-6 text-center text-stone-400 text-xs">No se encontraron productos con ese nombre.</p>`;
+          return;
+        }
+
+        html += otherProducts.map(p => {
+          const title = p.titulo || p.title || "Sin título";
+          const hasTonos = Array.isArray(p.tonos) && p.tonos.length > 0;
+          const tonosCount = hasTonos ? p.tonos.length : 0;
+          const imgs = p.imagenes || p.images || [];
+          const img = imgs[0] || 'https://via.placeholder.com/40';
+
+          return `
+            <div class="p-2.5 rounded-xl border border-stone-100 hover:border-pink-200 hover:bg-pink-50/30 flex items-center justify-between gap-3 transition-colors">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <img src="${img}" class="w-8 h-8 rounded-lg object-cover border border-stone-200 shrink-0">
+                <div class="truncate">
+                  <h5 class="font-bold text-xs text-stone-900 truncate">${title}</h5>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    ${hasTonos ? `
+                      <span class="px-2 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] rounded-full font-bold">
+                        🎨 ${tonosCount} ${tonosCount === 1 ? 'tono' : 'tonos'}
+                      </span>
+                    ` : `
+                      <span class="text-[10px] text-stone-400">Sin tonos configurados</span>
+                    `}
+                  </div>
+                </div>
+              </div>
+              <button onclick="openProductoTonosAdmin('${p.id}')" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors shrink-0 ${hasTonos ? 'bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100' : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-pink-50 hover:text-pink-600'}">
+                ${hasTonos ? 'Gestionar Tonos' : '+ Configurar Tonos'}
+              </button>
+            </div>
+          `;
+        }).join("");
+
+        listContainer.innerHTML = html;
+        if (window.lucide) window.lucide.createIcons();
+      };
+
+      if (openSelectorBtn) {
+        openSelectorBtn.addEventListener("click", () => {
+          if (selectorSearchInput) selectorSearchInput.value = "";
+          renderTonosProductsList();
+          if (selectorModal) selectorModal.classList.remove("hidden");
+        });
+      }
+
+      if (closeSelectorBtn) closeSelectorBtn.addEventListener("click", closeSelector);
+      if (cancelSelectorBtn) cancelSelectorBtn.addEventListener("click", closeSelector);
+
+      if (selectorSearchInput) {
+        selectorSearchInput.addEventListener("input", (e) => {
+          renderTonosProductsList(e.target.value.trim());
+        });
+      }
+
+      window.openValquinFromSelector = () => {
+        closeSelector();
+        renderValquinAdminAromas();
+        if (valquinModal) valquinModal.classList.remove("hidden");
+      };
+
+      // ================= GESTOR INDIVIDUAL DE TONOS PARA CUALQUIER PRODUCTO =================
+      const productoTonosModal = document.getElementById("productoTonosAdminModal");
+      const closeProdTonosBtn = document.getElementById("closeProductoTonosAdminBtn");
+      const cancelProdTonosBtn = document.getElementById("cancelProductoTonosAdminBtn");
+      const saveProdTonosBtn = document.getElementById("saveProductoTonosAdminBtn");
+      const addTonoBtn = document.getElementById("addTonoBtn");
+      const newTonoInput = document.getElementById("newTonoInput");
+      const tonosListEl = document.getElementById("productoTonosList");
+      const tonosCountBadge = document.getElementById("tonosCountBadge");
+      const tonosSaveNotice = document.getElementById("productoTonosSaveNotice");
+
+      let currentTonosProduct = null;
+      let activeTonosList = [];
+
+      const closeProdTonosModal = () => {
+        if (productoTonosModal) productoTonosModal.classList.add("hidden");
+        if (tonosSaveNotice) tonosSaveNotice.classList.add("hidden");
+      };
+
+      if (closeProdTonosBtn) closeProdTonosBtn.addEventListener("click", closeProdTonosModal);
+      if (cancelProdTonosBtn) cancelProdTonosBtn.addEventListener("click", closeProdTonosModal);
+
+      const renderActiveTonosList = () => {
+        if (!tonosListEl) return;
+        tonosCountBadge.textContent = `${activeTonosList.length} tonos`;
+
+        if (activeTonosList.length === 0) {
+          tonosListEl.innerHTML = `
+            <div class="text-center py-6 text-stone-400 bg-stone-50 rounded-xl border border-dashed border-stone-200">
+              <p class="font-medium">No hay tonos agregados aún.</p>
+              <p class="text-[10px] mt-0.5">Escribe el nombre de un tono arriba (ej: Tono 01 - Claro) y dale a "Agregar".</p>
+            </div>
+          `;
+          return;
+        }
+
+        tonosListEl.innerHTML = activeTonosList.map((t, idx) => `
+          <div class="flex items-center justify-between p-2.5 rounded-xl border ${t.disponible !== false ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/40'} transition-colors">
+            <div class="flex items-center gap-2 min-w-0 pr-2">
+              <span class="w-2.5 h-2.5 rounded-full ${t.disponible !== false ? 'bg-emerald-500' : 'bg-red-400'} shrink-0"></span>
+              <span class="font-bold text-xs ${t.disponible !== false ? 'text-stone-900' : 'text-stone-400 line-through'} truncate">${t.nombre}</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <label class="flex items-center gap-1 cursor-pointer">
+                <span class="text-[10px] font-bold ${t.disponible !== false ? 'text-emerald-700' : 'text-red-700'}">
+                  ${t.disponible !== false ? 'En Stock' : 'Agotado'}
+                </span>
+                <input type="checkbox" onchange="toggleTonoStock(${idx})" ${t.disponible !== false ? 'checked' : ''} class="w-4 h-4 text-pink-600 rounded border-stone-300">
+              </label>
+              <button onclick="removeTonoItem(${idx})" type="button" class="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar tono">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        `).join("");
+
+        if (window.lucide) window.lucide.createIcons();
+      };
+
+      window.toggleTonoStock = (idx) => {
+        if (activeTonosList[idx]) {
+          activeTonosList[idx].disponible = !activeTonosList[idx].disponible;
+          renderActiveTonosList();
+        }
+      };
+
+      window.removeTonoItem = (idx) => {
+        activeTonosList.splice(idx, 1);
+        renderActiveTonosList();
+      };
+
+      if (addTonoBtn && newTonoInput) {
+        const doAdd = () => {
+          const val = newTonoInput.value.trim();
+          if (!val) return;
+          activeTonosList.push({
+            id: "tono-" + Date.now() + "-" + Math.floor(Math.random() * 100),
+            nombre: val,
+            disponible: true
+          });
+          newTonoInput.value = "";
+          renderActiveTonosList();
+          newTonoInput.focus();
+        };
+
+        addTonoBtn.addEventListener("click", doAdd);
+        newTonoInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            doAdd();
+          }
+        });
+      }
+
+      window.openProductoTonosAdmin = (productId) => {
+        const p = products.find(x => x.id === productId);
+        if (!p) return;
+        currentTonosProduct = p;
+        closeSelector();
+
+        document.getElementById("productoTonosAdminTitle").textContent = p.titulo || p.title;
+        document.getElementById("productoTonosAdminSubtitle").textContent = "Gestiona los tonos y disponibilidad de stock para este producto.";
+
+        // Copiar tonos actuales
+        if (Array.isArray(p.tonos)) {
+          activeTonosList = p.tonos.map(t => typeof t === 'string' ? { id: t, nombre: t, disponible: true } : { ...t });
+        } else {
+          activeTonosList = [];
+        }
+
+        renderActiveTonosList();
+        if (productoTonosModal) productoTonosModal.classList.remove("hidden");
+      };
+
+      if (saveProdTonosBtn) {
+        saveProdTonosBtn.addEventListener("click", async () => {
+          if (!currentTonosProduct) return;
+          currentTonosProduct.tonos = activeTonosList.length ? activeTonosList : null;
+
+          if (sb) {
+            saveProdTonosBtn.disabled = true;
+            saveProdTonosBtn.textContent = "Guardando...";
+            const { error } = await sb.from('productos').update({ tonos: currentTonosProduct.tonos }).eq('id', currentTonosProduct.id);
+            saveProdTonosBtn.disabled = false;
+            saveProdTonosBtn.textContent = "Guardar Tonos en Supabase";
+
+            if (error) {
+              alert("Error guardando tonos en Supabase: " + error.message);
+              return;
+            }
+          }
+
+          if (tonosSaveNotice) tonosSaveNotice.classList.remove("hidden");
+          renderTable();
+          setTimeout(() => {
+            if (tonosSaveNotice) tonosSaveNotice.classList.add("hidden");
+            closeProdTonosModal();
+          }, 800);
+        });
+      }
 
       // ================= GESTIÓN DE AROMAS VALQUIN EN ADMIN =================
       const valquinModal = document.getElementById("valquinAromasAdminModal");
@@ -823,6 +1195,13 @@
       document.getElementById("editMayorPrice").value = p.precio_mayor || p.mayor_price || p.precio_unitario || p.price || 0;
       document.getElementById("editDocenaPrice").value = p.precio_docena || p.docena_price || p.precio_mayor || p.mayor_price || 0;
       document.getElementById("editDescription").value = p.descripcion || p.description || "";
+      
+      let tonosText = "";
+      if (Array.isArray(p.tonos) && p.tonos.length) {
+        tonosText = p.tonos.map(t => typeof t === 'string' ? t : (t.nombre || t.title || '')).filter(Boolean).join(", ");
+      }
+      document.getElementById("editTonos").value = tonosText;
+
       document.getElementById("editModal").classList.remove("hidden");
     };
 
