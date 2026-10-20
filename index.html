@@ -444,34 +444,33 @@
                 <div id="valquinSpecialContainer" class="hidden mt-3 space-y-3"></div>
               </div>
 
-              <!-- Selector de Aroma Obligatorio para Valquin -->
-              <div id="valquinAromaSelectorBox" class="hidden mt-3 p-3 bg-pink-50/70 border border-pink-200/90 rounded-xl space-y-2">
-                <div class="flex items-center justify-between">
-                  <label for="valquinAromaSelect" class="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                    <span>✨ Elige tu Aroma de Crema:</span>
-                  </label>
-                  <span id="valquinSelectedBadge" class="text-[10px] font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded-full">Obligatorio</span>
+              <!-- Resumen Multi-Aromas para Valquin -->
+              <div id="valquinMultiSummaryBox" class="hidden mt-3 p-3 bg-pink-50/80 border border-pink-200/90 rounded-xl space-y-2">
+                <div class="flex items-center justify-between text-xs font-bold text-stone-900">
+                  <span class="flex items-center gap-1.5">
+                    <span>🛍️ Tu Selección de Fragancias:</span>
+                  </span>
+                  <span id="valquinMultiTotalCountBadge" class="text-xs font-black text-pink-700 bg-pink-100 px-2.5 py-0.5 rounded-full border border-pink-200">0 cremas</span>
                 </div>
-                <select id="valquinAromaSelect" class="w-full text-xs font-medium p-2.5 rounded-lg border border-pink-300 bg-white text-stone-800 focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all cursor-pointer">
-                  <option value="">-- Toca aquí para elegir una fragancia disponible --</option>
-                </select>
-                <div id="valquinAromaStockNotice" class="hidden text-[11px] p-2 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5">
-                  <i data-lucide="info" class="w-3.5 h-3.5 shrink-0 text-amber-600"></i>
-                  <span id="valquinAromaNoticeText"></span>
+                <div id="valquinMultiItemsList" class="text-[11px] text-stone-600 space-y-1 max-h-24 overflow-y-auto">
+                  <span class="text-stone-400 italic text-[10px]">Toca [+] en los aromas que desees arriba para armar tu pedido variado.</span>
+                </div>
+                <div id="valquinMultiTierBadge" class="hidden text-[11px] p-1.5 rounded-lg font-semibold text-center">
+                  <!-- Escala al mayor desbloqueada -->
                 </div>
               </div>
             </div>
 
             <!-- Action button -->
             <div class="mt-6 pt-4 border-t border-stone-100 flex items-center gap-3">
-              <div class="flex items-center border border-stone-200 rounded-xl bg-stone-50 overflow-hidden">
+              <div id="modalStandardQtyControls" class="flex items-center border border-stone-200 rounded-xl bg-stone-50 overflow-hidden">
                 <button id="modalQtyMinus" class="px-3 py-2 text-stone-600 hover:bg-stone-200 font-bold transition-colors">-</button>
                 <span id="modalQtyValue" class="px-3 py-2 text-xs font-bold text-stone-900 min-w-[28px] text-center">1</span>
                 <button id="modalQtyPlus" class="px-3 py-2 text-stone-600 hover:bg-stone-200 font-bold transition-colors">+</button>
               </div>
               <button id="modalAddToCartBtn" class="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md shadow-brand-500/20 text-xs sm:text-sm transition-all flex items-center justify-center gap-2">
                 <i data-lucide="shopping-bag" class="w-4 h-4"></i>
-                <span>Agregar al Pedido</span>
+                <span id="modalAddToCartBtnText">Agregar al Pedido</span>
               </button>
             </div>
           </div>
