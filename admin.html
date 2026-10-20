@@ -94,8 +94,11 @@
         </div>
 
         <!-- Count & Add Button -->
-        <div class="flex items-center gap-3 w-full lg:w-auto justify-end">
+        <div class="flex items-center gap-2.5 w-full lg:w-auto justify-end flex-wrap">
           <span id="productTotalBadge" class="text-xs font-bold text-stone-500">Cargando productos...</span>
+          <button id="openValquinAromasAdminBtn" type="button" class="px-3.5 py-2 bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-xs whitespace-nowrap">
+            <span>🌸 Aromas Valquin (13)</span>
+          </button>
           <button id="openNewProductBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-md shadow-pink-600/20 whitespace-nowrap">
             <i data-lucide="plus" class="w-4 h-4"></i>
             <span>Agregar Producto Nuevo</span>
@@ -254,6 +257,72 @@
     </div>
   </div>
 
+  <!-- MODAL DE GESTIÓN DE AROMAS VALQUIN (13 AROMAS) -->
+  <div id="valquinAromasAdminModal" class="fixed inset-0 z-50 overflow-y-auto hidden flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs">
+    <div class="relative bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-pink-200 space-y-4 max-h-[90vh] flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🌸</span>
+          <div>
+            <h3 class="font-bold text-stone-900 text-base">Control de Disponibilidad - Cremas Valquin (13 Aromas)</h3>
+            <p class="text-[11px] text-stone-500">Marca las fragancias que tienes en stock y desmarca las agotadas. Se actualiza en la tienda al instante.</p>
+          </div>
+        </div>
+        <button id="closeValquinAromasAdminBtn" type="button" class="p-1 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center justify-between bg-stone-50 p-2.5 rounded-xl border border-stone-200/70 text-xs">
+        <span class="text-stone-600 font-medium text-[11px]">Acciones rápidas de stock:</span>
+        <div class="flex items-center gap-2">
+          <button id="markAllValquinAvailableBtn" type="button" class="px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-lg font-bold text-[11px] transition-colors">
+            Marcar Todos Disponibles (13)
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable List in 2 Columns -->
+      <div class="overflow-y-auto flex-1 pr-1 space-y-4">
+        <!-- Damas -->
+        <div>
+          <h4 class="text-xs font-bold text-pink-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span>🌸 Fragancias para Dama (6 Aromas)</span>
+          </h4>
+          <div id="adminDamasAromasList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <!-- Rellenado dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Caballeros -->
+        <div>
+          <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span>👔 Fragancias para Caballero (7 Aromas)</span>
+          </h4>
+          <div id="adminCaballerosAromasList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <!-- Rellenado dinámicamente -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="pt-3 border-t border-stone-100 flex items-center justify-between">
+        <span id="valquinAdminSaveNotice" class="text-xs font-bold text-emerald-600 hidden">¡Cambios guardados con éxito!</span>
+        <div class="flex items-center gap-2 ml-auto">
+          <button id="cancelValquinAromasAdminBtn" type="button" class="px-4 py-2 border border-stone-200 rounded-xl text-stone-600 hover:bg-stone-50 font-semibold text-xs">
+            Cerrar
+          </button>
+          <button id="saveValquinAromasAdminBtn" type="button" class="px-5 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-pink-600/20">
+            <span>Guardar Disponibilidad</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="valquin-aromas.js"></script>
   <script src="products-data.js"></script>
   <script>
     const SUPABASE_CONFIG = {
@@ -657,6 +726,87 @@
         closeModal();
         await fetchProducts();
       });
+
+      // ================= GESTIÓN DE AROMAS VALQUIN EN ADMIN =================
+      const valquinModal = document.getElementById("valquinAromasAdminModal");
+      const openValquinBtn = document.getElementById("openValquinAromasAdminBtn");
+      const closeValquinBtn = document.getElementById("closeValquinAromasAdminBtn");
+      const cancelValquinBtn = document.getElementById("cancelValquinAromasAdminBtn");
+      const saveValquinBtn = document.getElementById("saveValquinAromasAdminBtn");
+      const markAllValquinBtn = document.getElementById("markAllValquinAvailableBtn");
+      const saveNotice = document.getElementById("valquinAdminSaveNotice");
+
+      const closeValquinAdminModal = () => {
+        if (valquinModal) valquinModal.classList.add("hidden");
+        if (saveNotice) saveNotice.classList.add("hidden");
+      };
+
+      const renderValquinAdminAromas = () => {
+        if (!window.ValquinAromasManager) return;
+        const aromas = window.ValquinAromasManager.getAromas();
+        const damas = aromas.filter(a => a.genero === "mujer");
+        const caballeros = aromas.filter(a => a.genero === "hombre");
+
+        const damasContainer = document.getElementById("adminDamasAromasList");
+        const caballerosContainer = document.getElementById("adminCaballerosAromasList");
+
+        const renderItems = (items) => items.map(a => `
+          <label class="flex items-center justify-between p-2.5 rounded-xl border ${a.disponible ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/40'} hover:bg-stone-50 cursor-pointer transition-colors">
+            <div class="flex items-center gap-2 min-w-0 pr-2">
+              <span class="text-base">${a.icono}</span>
+              <div class="truncate">
+                <span class="font-bold text-xs ${a.disponible ? 'text-stone-900' : 'text-stone-500 line-through'}">${a.nombre}</span>
+                <span class="text-[10px] text-stone-500 block truncate">${a.familia}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-[10px] font-bold ${a.disponible ? 'text-emerald-700' : 'text-red-700'}">
+                ${a.disponible ? 'En Stock' : 'Agotado'}
+              </span>
+              <input type="checkbox" data-aroma-id="${a.id}" ${a.disponible ? 'checked' : ''} class="aroma-stock-checkbox w-4 h-4 text-pink-600 rounded focus:ring-pink-500 border-stone-300">
+            </div>
+          </label>
+        `).join("");
+
+        if (damasContainer) damasContainer.innerHTML = renderItems(damas);
+        if (caballerosContainer) caballerosContainer.innerHTML = renderItems(caballeros);
+      };
+
+      if (openValquinBtn) {
+        openValquinBtn.addEventListener("click", () => {
+          renderValquinAdminAromas();
+          if (valquinModal) valquinModal.classList.remove("hidden");
+        });
+      }
+
+      if (closeValquinBtn) closeValquinBtn.addEventListener("click", closeValquinAdminModal);
+      if (cancelValquinBtn) cancelValquinBtn.addEventListener("click", closeValquinAdminModal);
+
+      if (markAllValquinBtn) {
+        markAllValquinBtn.addEventListener("click", () => {
+          document.querySelectorAll(".aroma-stock-checkbox").forEach(cb => cb.checked = true);
+          if (window.ValquinAromasManager) window.ValquinAromasManager.resetAll();
+          renderValquinAdminAromas();
+        });
+      }
+
+      if (saveValquinBtn) {
+        saveValquinBtn.addEventListener("click", () => {
+          if (!window.ValquinAromasManager) return;
+          const checkboxes = document.querySelectorAll(".aroma-stock-checkbox");
+          checkboxes.forEach(cb => {
+            const aromaId = cb.dataset.aromaId;
+            window.ValquinAromasManager.setAvailability(aromaId, cb.checked);
+          });
+
+          renderValquinAdminAromas();
+          if (saveNotice) saveNotice.classList.remove("hidden");
+          setTimeout(() => {
+            if (saveNotice) saveNotice.classList.add("hidden");
+            closeValquinAdminModal();
+          }, 800);
+        });
+      }
     }
 
     window.editProduct = (id) => {

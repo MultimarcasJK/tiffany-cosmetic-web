@@ -18,7 +18,9 @@ let state = {
   isWholesale: false,
   cart: [],
   selectedProduct: null,
-  modalQty: 1
+  modalQty: 1,
+  selectedValquinAromaId: null,
+  selectedValquinAromaObj: null
 };
 
 // Determinar el nivel de precio según la cantidad
@@ -304,11 +306,48 @@ function setupEventListeners() {
   });
 
   document.getElementById("modalAddToCartBtn").addEventListener("click", () => {
-    if (state.selectedProduct) {
-      addToCart(state.selectedProduct, state.modalQty);
+    if (!state.selectedProduct) return;
+
+    const isValquin = (state.selectedProduct.id && state.selectedProduct.id.includes("valquin")) || 
+                      (state.selectedProduct.title && state.selectedProduct.title.toLowerCase().includes("valquin"));
+
+    if (isValquin) {
+      if (!state.selectedValquinAromaObj) {
+        showToast("⚠️ Por favor elige una fragancia disponible antes de agregar.");
+        const select = document.getElementById("valquinAromaSelect");
+        if (select) {
+          select.focus();
+          select.classList.add("ring-2", "ring-pink-500");
+          setTimeout(() => select.classList.remove("ring-2", "ring-pink-500"), 1500);
+        }
+        return;
+      }
+
+      if (!state.selectedValquinAromaObj.disponible) {
+        showAromaAgotadoAlert(state.selectedValquinAromaObj);
+        return;
+      }
+
+      addToCart(state.selectedProduct, state.modalQty, state.selectedValquinAromaObj);
       closeProductModal();
+      return;
     }
+
+    addToCart(state.selectedProduct, state.modalQty);
+    closeProductModal();
   });
+
+  // Cerrar alerta de aroma agotado
+  const closeAromaBtn = document.getElementById("closeAromaAgotadoBtn");
+  if (closeAromaBtn) {
+    closeAromaBtn.addEventListener("click", closeAromaAgotadoAlert);
+  }
+  const aromaAlertModal = document.getElementById("aromaAgotadoAlertModal");
+  if (aromaAlertModal) {
+    aromaAlertModal.addEventListener("click", (e) => {
+      if (e.target === aromaAlertModal) closeAromaAgotadoAlert();
+    });
+  }
 
   // Botón reset filtros vacío
   document.getElementById("resetFiltersBtn").addEventListener("click", () => {
@@ -501,6 +540,13 @@ window.handleProductClick = (productId) => {
 window.handleQuickAdd = (productId) => {
   const product = state.products.find(p => p.id === productId);
   if (!product) return;
+  const isValquin = (product.id && product.id.includes("valquin")) || 
+                    (product.title && product.title.toLowerCase().includes("valquin"));
+  if (isValquin) {
+    openProductModal(product);
+    showToast("✨ Selecciona tu fragancia favorita para tus Cremas Valquin");
+    return;
+  }
   addToCart(product, 1);
 };
 
@@ -508,6 +554,8 @@ window.handleQuickAdd = (productId) => {
 function openProductModal(product) {
   state.selectedProduct = product;
   state.modalQty = 1;
+  state.selectedValquinAromaId = null;
+  state.selectedValquinAromaObj = null;
 
   const modal = document.getElementById("productDetailModal");
   const backdrop = document.getElementById("modalBackdrop");
@@ -520,7 +568,25 @@ function openProductModal(product) {
   const vendorEl = document.getElementById("modalVendor");
   vendorEl.textContent = product.vendor || "";
   vendorEl.classList.toggle("hidden", !product.vendor);
-  document.getElementById("modalProductDesc").textContent = product.description || "Sin descripción disponible.";
+
+  // Manejo de Descripción / Guía Olfativa Valquin
+  const isValquin = (product.id && product.id.includes("valquin")) || 
+                    (product.title && product.title.toLowerCase().includes("valquin"));
+  const descEl = document.getElementById("modalProductDesc");
+  const descTitle = document.getElementById("modalDescTitle");
+  const valquinContainer = document.getElementById("valquinSpecialContainer");
+  const valquinSelector = document.getElementById("valquinAromaSelectorBox");
+
+  if (isValquin) {
+    renderValquinAromasGuide(product);
+  } else {
+    if (descTitle) descTitle.textContent = "Descripción:";
+    descEl.classList.remove("hidden");
+    descEl.textContent = product.description || "Sin descripción disponible.";
+    if (valquinContainer) valquinContainer.classList.add("hidden");
+    if (valquinSelector) valquinSelector.classList.add("hidden");
+  }
+
   document.getElementById("modalQtyValue").textContent = "1";
 
   // Precios escalonados en el modal
@@ -643,6 +709,8 @@ function closeProductModal() {
   setTimeout(() => {
     modal.classList.add("hidden");
     state.selectedProduct = null;
+    state.selectedValquinAromaId = null;
+    state.selectedValquinAromaObj = null;
   }, 200);
 }
 
@@ -650,14 +718,18 @@ function closeProductModal() {
 
 // ----------------- GESTIÓN DEL CARRITO CON ESCALA AUTOMÁTICA -----------------
 
-function addToCart(product, qty = 1) {
-  const existing = state.cart.find(item => item.id === product.id);
+function addToCart(product, qty = 1, aroma = null) {
+  const cartItemId = aroma ? `${product.id}__${aroma.id}` : product.id;
+  const existing = state.cart.find(item => item.id === cartItemId);
   if (existing) {
     existing.qty += qty;
   } else {
     state.cart.push({
-      id: product.id,
+      id: cartItemId,
+      baseProductId: product.id,
       title: product.title,
+      aroma: aroma ? aroma.nombre : null,
+      aromaGenero: aroma ? aroma.generoLabel : null,
       price: product.price || 0,
       mayor_price: product.mayor_price || product.price || 0,
       docena_price: product.docena_price || product.mayor_price || product.price || 0,
@@ -669,7 +741,8 @@ function addToCart(product, qty = 1) {
 
   saveCartToStorage();
   updateCartUI();
-  showToast(`¡${product.title} agregado al pedido!`);
+  const nombreAviso = aroma ? `${product.title} (${aroma.nombre})` : product.title;
+  showToast(`¡${nombreAviso} agregado al pedido!`);
 }
 
 function updateCartItemQty(productId, change) {
@@ -703,10 +776,17 @@ function updateCartUI() {
 
   const totalCount = state.cart.reduce((acc, item) => acc + item.qty, 0);
   
+  // Total de cremas Valquin en el carrito para escala por volumen unificada
+  const valquinTotalQty = state.cart
+    .filter(item => (item.baseProductId || item.id).includes("valquin"))
+    .reduce((sum, item) => sum + item.qty, 0);
+
   // Calcular total dinámico según la escala de 3 precios de cada producto
   let grandTotal = 0;
   state.cart.forEach(item => {
-    const tier = getItemTier(item);
+    const isValquin = (item.baseProductId || item.id).includes("valquin");
+    const effectiveQty = isValquin ? valquinTotalQty : item.qty;
+    const tier = getItemTier(item, effectiveQty);
     grandTotal += tier.price * item.qty;
   });
 
@@ -728,15 +808,18 @@ function updateCartUI() {
     `;
   } else {
     listEl.innerHTML = state.cart.map(item => {
-      const tier = getItemTier(item);
+      const isValquin = (item.baseProductId || item.id).includes("valquin");
+      const effectiveQty = isValquin ? valquinTotalQty : item.qty;
+      const tier = getItemTier(item, effectiveQty);
       const subtotal = tier.price * item.qty;
 
       // Mensaje de sugerencia para desbloquear el siguiente nivel
       let hintText = "";
-      if (item.qty === 2) {
-        hintText = `💡 ¡Agrega 1 más para pagar precio Al Mayor ($${item.mayor_price.toFixed(2)} c/u)!`;
-      } else if (item.qty >= 3 && item.qty < 12 && item.docena_price < item.mayor_price) {
-        const remaining = 12 - item.qty;
+      const currentQty = isValquin ? valquinTotalQty : item.qty;
+      if (currentQty === 2) {
+        hintText = `💡 ¡Agrega 1 ${isValquin ? 'crema Valquin más' : 'más'} para pagar precio Al Mayor ($${item.mayor_price.toFixed(2)} c/u)!`;
+      } else if (currentQty >= 3 && currentQty < 12 && item.docena_price < item.mayor_price) {
+        const remaining = 12 - currentQty;
         hintText = `🔥 ¡Lleva ${remaining} más para tarifa Docena ($${item.docena_price.toFixed(2)} c/u)!`;
       }
 
@@ -748,6 +831,14 @@ function updateCartUI() {
             <div class="flex-1 min-w-0">
               <h4 class="text-xs font-semibold text-stone-900 truncate">${item.title}</h4>
               
+              ${item.aroma ? `
+                <div class="mt-0.5">
+                  <span class="inline-flex items-center gap-1 text-[10px] font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100">
+                    ✨ Aroma: ${item.aroma}
+                  </span>
+                </div>
+              ` : ''}
+
               <!-- Badges de Nivel Aplicado -->
               <div class="flex items-center gap-1.5 mt-0.5">
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${tier.badgeClass}">
@@ -847,11 +938,22 @@ function handleWhatsAppCheckout() {
   let grandTotal = 0;
   let itemsText = "";
 
+  const valquinTotalQty = state.cart
+    .filter(item => (item.baseProductId || item.id).includes("valquin"))
+    .reduce((sum, item) => sum + item.qty, 0);
+
   state.cart.forEach((item) => {
-    const tier = getItemTier(item);
+    const isValquin = (item.baseProductId || item.id).includes("valquin");
+    const effectiveQty = isValquin ? valquinTotalQty : item.qty;
+    const tier = getItemTier(item, effectiveQty);
     const itemSubtotal = tier.price * item.qty;
     grandTotal += itemSubtotal;
-    itemsText += `• ${item.qty}x ${item.title}\n   ↳ Tarifa: ${tier.label} ($${tier.price.toFixed(2)} c/u) = *$${itemSubtotal.toFixed(2)}*\n`;
+
+    if (item.aroma) {
+      itemsText += `• ${item.qty}x ${item.title}\n   ↳ Aroma: *${item.aroma}*\n   ↳ Tarifa: ${tier.label} ($${tier.price.toFixed(2)} c/u) = *$${itemSubtotal.toFixed(2)}*\n`;
+    } else {
+      itemsText += `• ${item.qty}x ${item.title}\n   ↳ Tarifa: ${tier.label} ($${tier.price.toFixed(2)} c/u) = *$${itemSubtotal.toFixed(2)}*\n`;
+    }
   });
 
   // Mensaje estructurado para Bot Tiffany en n8n
@@ -957,3 +1059,272 @@ function showToast(msg) {
 // Exportar funciones globales
 window.updateCartItemQty = updateCartItemQty;
 window.removeCartItem = removeCartItem;
+window.showAromaAgotadoAlert = showAromaAgotadoAlert;
+window.closeAromaAgotadoAlert = closeAromaAgotadoAlert;
+
+// ----------------- EXPERIENCIA OLFATIVA VALQUIN (13 AROMAS) -----------------
+
+function renderValquinAromasGuide(product) {
+  const container = document.getElementById("valquinSpecialContainer");
+  const selectorBox = document.getElementById("valquinAromaSelectorBox");
+  const selectEl = document.getElementById("valquinAromaSelect");
+  const descEl = document.getElementById("modalProductDesc");
+  const descTitle = document.getElementById("modalDescTitle");
+
+  if (!container || !selectorBox || !selectEl) return;
+
+  container.classList.remove("hidden");
+  selectorBox.classList.remove("hidden");
+  if (descTitle) descTitle.textContent = "✨ Guía Olfativa & Notas de Fragancias:";
+
+  // Breve resumen inicial elegante de la crema
+  descEl.innerHTML = `
+    <div class="p-2.5 rounded-xl bg-pink-50/60 border border-pink-200/80 text-stone-700 space-y-1">
+      <p class="font-medium">🧴 <strong>Cremas Corporales Valquin:</strong> Hidratación profunda y fragancias de perfumería fina inspiradas en aromas icónicos internacionales.</p>
+      <p class="text-[11px] text-pink-700 font-semibold">👇 Toca las pestañas para explorar las notas olfativas de cada fragancia y elige tu favorita abajo:</p>
+    </div>
+  `;
+
+  const aromas = window.ValquinAromasManager ? window.ValquinAromasManager.getAromas() : [];
+  const damas = aromas.filter(a => a.genero === "mujer");
+  const caballeros = aromas.filter(a => a.genero === "hombre");
+
+  // Pestañas y contenedor de tarjetas
+  container.innerHTML = `
+    <!-- Pestañas de Género -->
+    <div class="flex items-center gap-1.5 p-1 bg-stone-100 rounded-xl border border-stone-200/70 text-xs font-bold">
+      <button type="button" id="valquinTabDamas" class="flex-1 py-2 px-3 rounded-lg bg-pink-600 text-white transition-all shadow-xs flex items-center justify-center gap-1.5">
+        <span>🌸 Para Ella (${damas.length})</span>
+      </button>
+      <button type="button" id="valquinTabCaballeros" class="flex-1 py-2 px-3 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center justify-center gap-1.5">
+        <span>👔 Para Él (${caballeros.length})</span>
+      </button>
+    </div>
+
+    <!-- Contenedor Scrollable de Aromas -->
+    <div id="valquinAromasCardsList" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+      <!-- Se genera dinámicamente -->
+    </div>
+  `;
+
+  // Poblar Select Dropdown de Aromas
+  selectEl.innerHTML = `<option value="">-- Toca aquí para elegir una fragancia disponible --</option>`;
+
+  const optGroupDamas = document.createElement("optgroup");
+  optGroupDamas.label = "🌸 FRAGANCIAS PARA DAMA";
+  damas.forEach(a => {
+    const opt = document.createElement("option");
+    opt.value = a.id;
+    opt.textContent = a.disponible ? `${a.nombre} (${a.familia})` : `${a.nombre} - [❌ AGOTADO]`;
+    if (!a.disponible) {
+      opt.disabled = true;
+      opt.classList.add("text-stone-400", "bg-stone-100");
+    }
+    optGroupDamas.appendChild(opt);
+  });
+  selectEl.appendChild(optGroupDamas);
+
+  const optGroupCaballeros = document.createElement("optgroup");
+  optGroupCaballeros.label = "👔 FRAGANCIAS PARA CABALLERO";
+  caballeros.forEach(a => {
+    const opt = document.createElement("option");
+    opt.value = a.id;
+    opt.textContent = a.disponible ? `${a.nombre} (${a.familia})` : `${a.nombre} - [❌ AGOTADO]`;
+    if (!a.disponible) {
+      opt.disabled = true;
+      opt.classList.add("text-stone-400", "bg-stone-100");
+    }
+    optGroupCaballeros.appendChild(opt);
+  });
+  selectEl.appendChild(optGroupCaballeros);
+
+  let activeTab = "damas";
+  const tabDamasBtn = document.getElementById("valquinTabDamas");
+  const tabCaballerosBtn = document.getElementById("valquinTabCaballeros");
+
+  const renderAromaCards = (genero) => {
+    const listEl = document.getElementById("valquinAromasCardsList");
+    if (!listEl) return;
+    const items = genero === "damas" ? damas : caballeros;
+
+    listEl.innerHTML = items.map(a => {
+      const isSelected = state.selectedValquinAromaId === a.id;
+      const isAgotado = !a.disponible;
+
+      return `
+        <div class="aroma-card border ${isSelected ? 'border-pink-500 bg-pink-50/50 ring-2 ring-pink-400' : isAgotado ? 'border-red-200 bg-red-50/30 opacity-75' : 'border-stone-200 bg-white hover:border-pink-300'} rounded-xl p-2.5 transition-all cursor-pointer select-none" data-aroma-id="${a.id}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-base shrink-0">${a.icono}</span>
+              <div class="truncate">
+                <span class="font-bold text-xs ${isAgotado ? 'text-stone-600 line-through' : 'text-stone-900'}">${a.nombre}</span>
+                <span class="text-[10px] text-stone-500 block truncate">${a.familia}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${isAgotado 
+                ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">Agotado ❌</span>' 
+                : isSelected
+                  ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-600 text-white shadow-xs">Elegido ✓</span>'
+                  : '<span class="select-aroma-badge px-2 py-0.5 rounded-full text-[10px] font-semibold bg-stone-100 text-stone-700 border border-stone-200 hover:bg-pink-100 hover:text-pink-700 transition-colors">Seleccionar</span>'
+              }
+              <button type="button" class="toggle-notes-btn p-1 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-100" title="Ver notas">
+                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Pirámide Olfativa Acordeón (Desplegable) -->
+          <div class="aroma-notes-box hidden mt-2.5 pt-2 border-t border-stone-100 text-[11px] space-y-1.5 bg-stone-50/90 p-2.5 rounded-lg">
+            <div class="flex items-start gap-1.5">
+              <span class="font-bold text-emerald-800 shrink-0">🍃 Salida:</span>
+              <span class="text-stone-600">${a.salida}</span>
+            </div>
+            <div class="flex items-start gap-1.5">
+              <span class="font-bold text-pink-800 shrink-0">🌸 Corazón:</span>
+              <span class="text-stone-600">${a.corazon}</span>
+            </div>
+            <div class="flex items-start gap-1.5">
+              <span class="font-bold text-amber-900 shrink-0">🪵 Fondo:</span>
+              <span class="text-stone-600">${a.fondo}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    if (window.lucide) window.lucide.createIcons();
+
+    // Eventos dentro de cada tarjeta
+    listEl.querySelectorAll(".aroma-card").forEach(card => {
+      const aromaId = card.dataset.aromaId;
+      const aromaObj = aromas.find(x => x.id === aromaId);
+
+      const toggleBtn = card.querySelector(".toggle-notes-btn");
+      const notesBox = card.querySelector(".aroma-notes-box");
+
+      const toggleNotes = (e) => {
+        if (e) e.stopPropagation();
+        const isOpen = !notesBox.classList.contains("hidden");
+        notesBox.classList.toggle("hidden", isOpen);
+        const icon = card.querySelector(".toggle-notes-btn i");
+        if (icon) {
+          icon.setAttribute("data-lucide", isOpen ? "chevron-down" : "chevron-up");
+          if (window.lucide) window.lucide.createIcons();
+        }
+      };
+
+      if (toggleBtn) toggleBtn.addEventListener("click", toggleNotes);
+
+      card.addEventListener("click", () => {
+        if (!aromaObj.disponible) {
+          showAromaAgotadoAlert(aromaObj);
+          return;
+        }
+        selectAroma(aromaObj);
+      });
+    });
+  };
+
+  const selectAroma = (aromaObj) => {
+    state.selectedValquinAromaId = aromaObj.id;
+    state.selectedValquinAromaObj = aromaObj;
+    selectEl.value = aromaObj.id;
+
+    const badge = document.getElementById("valquinSelectedBadge");
+    if (badge) {
+      badge.textContent = `Aroma: ${aromaObj.nombre}`;
+      badge.className = "text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200";
+    }
+
+    renderAromaCards(activeTab);
+    showToast(`✨ Fragancia "${aromaObj.nombre}" elegida`);
+  };
+
+  tabDamasBtn.addEventListener("click", () => {
+    activeTab = "damas";
+    tabDamasBtn.className = "flex-1 py-2 px-3 rounded-lg bg-pink-600 text-white transition-all shadow-xs flex items-center justify-center gap-1.5 font-bold";
+    tabCaballerosBtn.className = "flex-1 py-2 px-3 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center justify-center gap-1.5 font-bold";
+    renderAromaCards("damas");
+  });
+
+  tabCaballerosBtn.addEventListener("click", () => {
+    activeTab = "caballeros";
+    tabCaballerosBtn.className = "flex-1 py-2 px-3 rounded-lg bg-pink-600 text-white transition-all shadow-xs flex items-center justify-center gap-1.5 font-bold";
+    tabDamasBtn.className = "flex-1 py-2 px-3 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center justify-center gap-1.5 font-bold";
+    renderAromaCards("caballeros");
+  });
+
+  // Cambio en el selector dropdown
+  selectEl.addEventListener("change", (e) => {
+    const val = e.target.value;
+    if (!val) {
+      state.selectedValquinAromaId = null;
+      state.selectedValquinAromaObj = null;
+      const badge = document.getElementById("valquinSelectedBadge");
+      if (badge) {
+        badge.textContent = "Obligatorio";
+        badge.className = "text-[10px] font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded-full";
+      }
+      renderAromaCards(activeTab);
+      return;
+    }
+
+    const aromaObj = aromas.find(a => a.id === val);
+    if (aromaObj) {
+      if (!aromaObj.disponible) {
+        showAromaAgotadoAlert(aromaObj);
+        selectEl.value = "";
+        return;
+      }
+      selectAroma(aromaObj);
+      if (aromaObj.genero === "hombre" && activeTab !== "caballeros") {
+        tabCaballerosBtn.click();
+      } else if (aromaObj.genero === "mujer" && activeTab !== "damas") {
+        tabDamasBtn.click();
+      }
+    }
+  });
+
+  // Render inicial
+  renderAromaCards("damas");
+}
+
+// ----------------- AVISO / MODAL DE AROMA AGOTADO -----------------
+
+function showAromaAgotadoAlert(aroma) {
+  const modal = document.getElementById("aromaAgotadoAlertModal");
+  const panel = document.getElementById("aromaAgotadoPanel");
+  const title = document.getElementById("aromaAgotadoTitle");
+  const msg = document.getElementById("aromaAgotadoMessage");
+
+  if (!modal) {
+    alert(`⚠️ Lo sentimos, el aroma "${aroma.nombre}" está agotado temporalmente. Por favor elige otro aroma disponible.`);
+    return;
+  }
+
+  title.textContent = `Aroma Agotado: ${aroma.nombre} ❌`;
+  msg.innerHTML = `
+    Lo sentimos mucho, la fragancia <strong>"${aroma.nombre}"</strong> (${aroma.generoLabel}) se encuentra <strong>agotada temporalmente</strong>.<br><br>
+    ✨ ¡Aún tenemos otros aromas deliciosos disponibles para tus cremas Valquin! Por favor selecciona cualquiera de los que están en stock para tu pedido.
+  `;
+
+  modal.classList.remove("hidden");
+  setTimeout(() => {
+    modal.classList.remove("opacity-0");
+    panel.classList.remove("scale-95");
+    panel.classList.add("scale-100");
+  }, 10);
+}
+
+function closeAromaAgotadoAlert() {
+  const modal = document.getElementById("aromaAgotadoAlertModal");
+  const panel = document.getElementById("aromaAgotadoPanel");
+  if (!modal) return;
+
+  panel.classList.add("scale-95");
+  panel.classList.remove("scale-100");
+  setTimeout(() => {
+    modal.classList.add("hidden");
+  }, 150);
+}
