@@ -1120,7 +1120,7 @@ window.removeCartItem = removeCartItem;
 window.showAromaAgotadoAlert = showAromaAgotadoAlert;
 window.closeAromaAgotadoAlert = closeAromaAgotadoAlert;
 
-// ----------------- EXPERIENCIA OLFATIVA VALQUIN (13 AROMAS) -----------------
+// ----------------- EXPERIENCIA OLFATIVA VALQUIN (19 AROMAS) -----------------
 
 function renderValquinAromasGuide(product) {
   const container = document.getElementById("valquinSpecialContainer");

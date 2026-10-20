@@ -364,7 +364,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE GESTIÓN DE AROMAS VALQUIN (13 AROMAS) -->
+  <!-- MODAL DE GESTIÓN DE AROMAS VALQUIN (19 AROMAS) -->
   <div id="valquinAromasAdminModal" class="fixed inset-0 z-50 overflow-y-auto hidden flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs">
     <div class="relative bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-pink-200 space-y-4 max-h-[90vh] flex flex-col">
       <!-- Header -->
@@ -372,7 +372,7 @@
         <div class="flex items-center gap-2.5">
           <span class="text-2xl">🌸</span>
           <div>
-            <h3 class="font-bold text-stone-900 text-base">Control de Disponibilidad - Cremas Valquin</h3>
+            <h3 class="font-bold text-stone-900 text-base">Control de Disponibilidad - Cremas Valquin (19 Fragancias)</h3>
             <p class="text-[11px] text-stone-500">Marca las fragancias que tienes en stock y desmarca las agotadas. Se actualiza en la tienda al instante.</p>
           </div>
         </div>
@@ -386,7 +386,7 @@
         <span class="text-stone-600 font-medium text-[11px]">Acciones rápidas de stock:</span>
         <div class="flex items-center gap-2">
           <button id="markAllValquinAvailableBtn" type="button" class="px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-lg font-bold text-[11px] transition-colors">
-            Marcar Todos Disponibles (13)
+            Marcar Todos Disponibles (19)
           </button>
         </div>
       </div>
@@ -396,7 +396,7 @@
         <!-- Damas -->
         <div>
           <h4 class="text-xs font-bold text-pink-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🌸 Fragancias para Dama (6 Aromas)</span>
+            <span>🌸 Fragancias para Dama (9 Aromas)</span>
           </h4>
           <div id="adminDamasAromasList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             <!-- Rellenado dinámicamente -->
@@ -406,7 +406,7 @@
         <!-- Caballeros -->
         <div>
           <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>👔 Fragancias para Caballero (7 Aromas)</span>
+            <span>👔 Fragancias para Caballero (10 Aromas)</span>
           </h4>
           <div id="adminCaballerosAromasList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             <!-- Rellenado dinámicamente -->
@@ -834,7 +834,20 @@
         };
 
         if (sb) {
-          const { error } = await sb.from('productos').upsert(productPayload);
+          let { error } = await sb.from('productos').upsert(productPayload);
+          // Fallback en caso de que alguna columna (como marca o tonos) no exista aún en Supabase
+          if (error && error.message && error.message.includes("Could not find the 'marca' column")) {
+            console.warn("Reintentando guardado sin columna 'marca':", error);
+            delete productPayload.marca;
+            const res = await sb.from('productos').upsert(productPayload);
+            error = res.error;
+          }
+          if (error && error.message && error.message.includes("Could not find the 'tonos' column")) {
+            console.warn("Reintentando guardado sin columna 'tonos':", error);
+            delete productPayload.tonos;
+            const res = await sb.from('productos').upsert(productPayload);
+            error = res.error;
+          }
           if (error) {
             alert("Error guardando en Supabase: " + error.message);
             return;
