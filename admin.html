@@ -216,11 +216,13 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-bold text-stone-700 mb-1">Categoría *</label>
-            <input type="text" id="editCategory" required placeholder="Labios, Rostro, etc." class="w-full border border-stone-200 rounded-lg p-2.5">
+            <input type="text" id="editCategory" required list="listaCategorias" autocomplete="off" placeholder="Elige o escribe..." class="w-full border border-stone-200 rounded-lg p-2.5">
+            <datalist id="listaCategorias"></datalist>
           </div>
           <div>
             <label class="block font-bold text-stone-700 mb-1">Marca</label>
-            <input type="text" id="editMarca" placeholder="Kiss Beauty, SAS, etc." class="w-full border border-stone-200 rounded-lg p-2.5">
+            <input type="text" id="editMarca" list="listaMarcas" autocomplete="off" placeholder="Elige o escribe..." class="w-full border border-stone-200 rounded-lg p-2.5">
+            <datalist id="listaMarcas"></datalist>
           </div>
           <div>
             <label class="block font-bold text-stone-700 mb-1">URL o Ruta de Imagen</label>
@@ -793,6 +795,7 @@
         document.getElementById("editProductId").value = "";
         editTonos = [];
         renderEditTonos();
+        llenarListasDesplegables();
         document.getElementById("editModal").classList.remove("hidden");
       });
 
@@ -805,8 +808,9 @@
         e.preventDefault();
         const id = document.getElementById("editProductId").value || "prod-" + Date.now();
         const titulo = document.getElementById("editTitle").value.trim();
-        const categoria = document.getElementById("editCategory").value.trim();
-        const marca = document.getElementById("editMarca").value.trim() || null;
+        // Si lo escrito coincide con una categoría/marca que ya existe, se usa exactamente esa
+        const categoria = normalizarContraLista(document.getElementById("editCategory").value, valoresUnicos("categoria"));
+        const marca = normalizarContraLista(document.getElementById("editMarca").value, valoresUnicos("marca")) || null;
         const image = document.getElementById("editImage").value.trim();
         const precio_unitario = parseFloat(document.getElementById("editPrice").value) || 0;
         const precio_mayor = parseFloat(document.getElementById("editMayorPrice").value) || precio_unitario;
@@ -1201,6 +1205,42 @@
       }
     }
 
+    // ----------------- LISTAS DE CATEGORÍAS Y MARCAS (sin repetidas) -----------------
+    // Compara sin mayúsculas, tildes, puntos ni espacios: "karite", "Karité " y "KARITE" son la misma
+    function claveComparar(s) {
+      return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+
+    function valoresUnicos(campo) {
+      const vistos = new Map();
+      products.forEach(p => {
+        const v = (p[campo] || "").trim();
+        if (v && v !== "Sin categoría" && !vistos.has(claveComparar(v))) vistos.set(claveComparar(v), v);
+      });
+      return [...vistos.values()].sort((a, b) => a.localeCompare(b, "es"));
+    }
+
+    function normalizarContraLista(valor, lista) {
+      const limpio = String(valor || "").trim().replace(/\s+/g, " ");
+      if (!limpio) return "";
+      return lista.find(x => claveComparar(x) === claveComparar(limpio)) || limpio;
+    }
+
+    function llenarListasDesplegables() {
+      document.getElementById("listaCategorias").innerHTML =
+        valoresUnicos("categoria").map(v => `<option value="${escaparHtml(v)}"></option>`).join("");
+      document.getElementById("listaMarcas").innerHTML =
+        valoresUnicos("marca").map(v => `<option value="${escaparHtml(v)}"></option>`).join("");
+    }
+
+    // Al salir del campo, si coincide con una existente se corrige sola
+    [["editCategory", "categoria"], ["editMarca", "marca"]].forEach(([inputId, campo]) => {
+      document.getElementById(inputId).addEventListener("change", (e) => {
+        e.target.value = normalizarContraLista(e.target.value, valoresUnicos(campo));
+      });
+    });
+
     // ----------------- TONOS EN EL FORMULARIO DE EDICIÓN -----------------
     let editTonos = [];
 
@@ -1277,6 +1317,7 @@
         .filter(t => t.nombre);
       document.getElementById("editTonoNuevo").value = "";
       renderEditTonos();
+      llenarListasDesplegables();
 
       document.getElementById("editModal").classList.remove("hidden");
     };
