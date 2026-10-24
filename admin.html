@@ -247,10 +247,21 @@
         <div>
           <label class="block font-bold text-stone-700 mb-1 flex items-center justify-between">
             <span>Tonos / Variantes (Opcional)</span>
-            <span class="text-[10px] text-pink-600 font-semibold">Separados por comas</span>
+            <span id="editTonosCount" class="text-[10px] text-pink-600 font-semibold">0 tonos</span>
           </label>
-          <input type="text" id="editTonos" placeholder="Ej: Tono 01 - Claro, Tono 02 - Medio, Tono 03 - Canela" class="w-full border border-stone-200 rounded-lg p-2.5">
-          <p class="text-[10px] text-stone-400 mt-1">Si colocas tonos, en la tienda la clienta podrá elegir cantidades de cada tono por separado.</p>
+
+          <!-- Lista de tonos del producto -->
+          <div id="editTonosList" class="space-y-1.5 mb-2"></div>
+
+          <!-- Agregar un tono nuevo -->
+          <div class="flex gap-2">
+            <input type="text" id="editTonoNuevo" placeholder="Ej: Tono 01 - Claro" class="flex-1 border border-stone-200 rounded-lg p-2.5">
+            <button type="button" id="editTonoAgregarBtn" class="px-3.5 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-bold flex items-center gap-1 whitespace-nowrap">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Agregar tono</span>
+            </button>
+          </div>
+          <p class="text-[10px] text-stone-400 mt-1">Escribe el tono y presiona "Agregar tono" (o Enter). En la tienda la clienta podrá elegir cantidades de cada tono por separado.</p>
         </div>
 
         <div>
@@ -780,6 +791,8 @@
         document.getElementById("modalTitle").textContent = "Agregar Producto Nuevo a Supabase";
         document.getElementById("productForm").reset();
         document.getElementById("editProductId").value = "";
+        editTonos = [];
+        renderEditTonos();
         document.getElementById("editModal").classList.remove("hidden");
       });
 
@@ -799,15 +812,9 @@
         const precio_mayor = parseFloat(document.getElementById("editMayorPrice").value) || precio_unitario;
         const precio_docena = parseFloat(document.getElementById("editDocenaPrice").value) || precio_mayor;
         const descripcion = document.getElementById("editDescription").value.trim();
-        const rawTonos = document.getElementById("editTonos").value.trim();
-        let tonos = [];
-        if (rawTonos) {
-          tonos = rawTonos.split(",").map(t => t.trim()).filter(Boolean).map((t, i) => ({
-            id: "tono-" + (i + 1),
-            nombre: t,
-            disponible: true
-          }));
-        }
+        // Si escribieron un tono pero no presionaron "Agregar", se agrega igual
+        agregarTonoDesdeInput();
+        const tonos = editTonos.map((t, i) => ({ ...t, id: t.id || "tono-" + (i + 1) }));
 
         // Al editar se conservan las demás fotos y el estado agotado/disponible
         const existing = products.find(x => x.id === id);
@@ -829,7 +836,7 @@
           precio_docena,
           descripcion,
           imagenes,
-          tonos: tonos.length ? tonos : (existing && existing.tonos ? existing.tonos : null),
+          tonos: tonos.length ? tonos : null,
           disponible: existing ? existing.disponible !== false : true
         };
 
@@ -1194,6 +1201,62 @@
       }
     }
 
+    // ----------------- TONOS EN EL FORMULARIO DE EDICIÓN -----------------
+    let editTonos = [];
+
+    function escaparHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function renderEditTonos() {
+      const lista = document.getElementById("editTonosList");
+      document.getElementById("editTonosCount").textContent = `${editTonos.length} ${editTonos.length === 1 ? 'tono' : 'tonos'}`;
+      lista.innerHTML = editTonos.map((t, i) => `
+        <div class="flex items-center gap-2 border rounded-lg px-2.5 py-1.5 ${t.disponible === false ? 'border-stone-200 bg-stone-50' : 'border-emerald-200 bg-emerald-50/50'}">
+          <span class="w-2 h-2 rounded-full ${t.disponible === false ? 'bg-stone-300' : 'bg-emerald-500'}"></span>
+          <span class="flex-1 font-semibold ${t.disponible === false ? 'text-stone-400 line-through' : 'text-stone-800'}">${escaparHtml(t.nombre)}</span>
+          <button type="button" data-tono-toggle="${i}" class="text-[10px] font-bold px-2 py-0.5 rounded-full ${t.disponible === false ? 'bg-stone-200 text-stone-600' : 'bg-emerald-100 text-emerald-700'}">
+            ${t.disponible === false ? 'Agotado' : 'En stock'}
+          </button>
+          <button type="button" data-tono-borrar="${i}" title="Quitar tono" class="p-1 text-stone-400 hover:text-red-600">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `).join("");
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function agregarTonoDesdeInput() {
+      const input = document.getElementById("editTonoNuevo");
+      const nombre = input.value.trim();
+      if (!nombre) return false;
+      if (!editTonos.some(t => t.nombre.toLowerCase() === nombre.toLowerCase())) {
+        editTonos.push({ id: "tono-" + Date.now(), nombre, disponible: true });
+      }
+      input.value = "";
+      renderEditTonos();
+      return true;
+    }
+
+    document.getElementById("editTonoAgregarBtn").addEventListener("click", () => {
+      agregarTonoDesdeInput();
+      document.getElementById("editTonoNuevo").focus();
+    });
+    document.getElementById("editTonoNuevo").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); agregarTonoDesdeInput(); }
+    });
+    document.getElementById("editTonosList").addEventListener("click", (e) => {
+      const toggle = e.target.closest("[data-tono-toggle]");
+      const borrar = e.target.closest("[data-tono-borrar]");
+      if (toggle) {
+        const t = editTonos[+toggle.dataset.tonoToggle];
+        t.disponible = t.disponible === false;
+      } else if (borrar) {
+        editTonos.splice(+borrar.dataset.tonoBorrar, 1);
+      } else return;
+      renderEditTonos();
+    });
+
     window.editProduct = (id) => {
       const p = products.find(x => x.id === id);
       if (!p) return;
@@ -1209,11 +1272,11 @@
       document.getElementById("editDocenaPrice").value = p.precio_docena || p.docena_price || p.precio_mayor || p.mayor_price || 0;
       document.getElementById("editDescription").value = p.descripcion || p.description || "";
       
-      let tonosText = "";
-      if (Array.isArray(p.tonos) && p.tonos.length) {
-        tonosText = p.tonos.map(t => typeof t === 'string' ? t : (t.nombre || t.title || '')).filter(Boolean).join(", ");
-      }
-      document.getElementById("editTonos").value = tonosText;
+      editTonos = (Array.isArray(p.tonos) ? p.tonos : [])
+        .map(t => typeof t === 'string' ? { id: t, nombre: t, disponible: true } : { ...t, nombre: t.nombre || t.title || '' })
+        .filter(t => t.nombre);
+      document.getElementById("editTonoNuevo").value = "";
+      renderEditTonos();
 
       document.getElementById("editModal").classList.remove("hidden");
     };
