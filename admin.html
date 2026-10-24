@@ -46,6 +46,10 @@
             <span>Pedidos Recibidos</span>
             <span id="ordersCountBadge" class="bg-stone-200 text-stone-800 text-[10px] px-1.5 py-0.2 rounded-full">0</span>
           </button>
+          <button id="tabCatalogosBtn" class="px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5">
+            <i data-lucide="tags" class="w-3.5 h-3.5"></i>
+            <span>Marcas y Categorías</span>
+          </button>
         </div>
 
         <a href="index.html" target="_blank" class="px-3.5 py-2 text-xs font-semibold text-stone-700 bg-white/90 hover:bg-white rounded-xl border border-[#e9bfdf] flex items-center gap-1.5 transition-colors shadow-xs">
@@ -166,6 +170,21 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- ================= SECTION: MARCAS Y CATEGORÍAS ================= -->
+    <div id="sectionCatalogos" class="space-y-6 hidden">
+      <div class="bg-white p-4 rounded-2xl border border-[#e9bfdf] shadow-sm">
+        <h2 class="text-base font-bold text-stone-900">Marcas y Categorías</h2>
+        <p class="text-xs text-stone-500">Crea, renombra o elimina. Si cambias un nombre, se actualiza en todos sus productos. Solo se puede eliminar si ningún producto la usa.</p>
+        <p id="catalogosAviso" class="hidden mt-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"></p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Se llenan desde JS: una tarjeta para categorías y otra para marcas -->
+        <div id="catalogoCategorias"></div>
+        <div id="catalogoMarcas"></div>
       </div>
     </div>
 
@@ -491,6 +510,7 @@
       // 4. Sincronizar en segundo plano con Supabase (sin congelar la pantalla)
       fetchProducts();
       fetchOrders();
+      fetchCatalogos();
 
       if (window.lucide) window.lucide.createIcons();
     });
@@ -751,22 +771,34 @@
       // Toggle Tabs
       const tabProductsBtn = document.getElementById("tabProductsBtn");
       const tabOrdersBtn = document.getElementById("tabOrdersBtn");
+      const tabCatalogosBtn = document.getElementById("tabCatalogosBtn");
       const sectionProducts = document.getElementById("sectionProducts");
       const sectionOrders = document.getElementById("sectionOrders");
+      const sectionCatalogos = document.getElementById("sectionCatalogos");
 
-      tabProductsBtn.addEventListener("click", () => {
-        tabProductsBtn.className = "px-3 py-1.5 rounded-lg bg-pink-600 text-white font-bold transition-all flex items-center gap-1.5";
-        tabOrdersBtn.className = "px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5";
-        sectionProducts.classList.remove("hidden");
-        sectionOrders.classList.add("hidden");
-      });
+      const TAB_ACTIVA = "px-3 py-1.5 rounded-lg bg-pink-600 text-white font-bold transition-all flex items-center gap-1.5";
+      const TAB_INACTIVA = "px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5";
+      const pestanas = [
+        [tabProductsBtn, sectionProducts],
+        [tabOrdersBtn, sectionOrders],
+        [tabCatalogosBtn, sectionCatalogos]
+      ];
+      const mostrarPestana = (btnActivo) => {
+        pestanas.forEach(([btn, seccion]) => {
+          btn.className = btn === btnActivo ? TAB_ACTIVA : TAB_INACTIVA;
+          seccion.classList.toggle("hidden", btn !== btnActivo);
+        });
+      };
 
+      tabProductsBtn.addEventListener("click", () => mostrarPestana(tabProductsBtn));
       tabOrdersBtn.addEventListener("click", () => {
-        tabOrdersBtn.className = "px-3 py-1.5 rounded-lg bg-pink-600 text-white font-bold transition-all flex items-center gap-1.5";
-        tabProductsBtn.className = "px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all flex items-center gap-1.5";
-        sectionOrders.classList.remove("hidden");
-        sectionProducts.classList.add("hidden");
+        mostrarPestana(tabOrdersBtn);
         fetchOrders();
+      });
+      tabCatalogosBtn.addEventListener("click", async () => {
+        mostrarPestana(tabCatalogosBtn);
+        await fetchCatalogos();
+        renderCatalogos();
       });
 
       document.getElementById("refreshOrdersBtn").addEventListener("click", fetchOrders);
@@ -867,6 +899,7 @@
 
         closeModal();
         await fetchProducts();
+        fetchCatalogos(); // por si se creó una marca o categoría nueva
       });
 
       // ================= SELECTOR GENERAL DE TONOS Y AROMAS =================
@@ -1214,12 +1247,122 @@
 
     function valoresUnicos(campo) {
       const vistos = new Map();
-      products.forEach(p => {
-        const v = (p[campo] || "").trim();
+      // Primero la lista oficial (tablas categorias / marcas) y luego lo que usan los productos
+      const oficiales = (campo === "categoria" ? catalogos.categorias : catalogos.marcas).map(x => x.nombre);
+      [...oficiales, ...products.map(p => p[campo])].forEach(valor => {
+        const v = (valor || "").trim();
         if (v && v !== "Sin categoría" && !vistos.has(claveComparar(v))) vistos.set(claveComparar(v), v);
       });
       return [...vistos.values()].sort((a, b) => a.localeCompare(b, "es"));
     }
+
+    // ----------------- PESTAÑA "MARCAS Y CATEGORÍAS" (tablas propias en Supabase) -----------------
+    const catalogos = { categorias: [], marcas: [], tablasListas: false };
+
+    async function fetchCatalogos() {
+      if (!sb) return;
+      const [cat, mar] = await Promise.all([
+        sb.from("categorias").select("id,nombre").order("nombre"),
+        sb.from("marcas").select("id,nombre").order("nombre")
+      ]);
+      catalogos.tablasListas = !cat.error && !mar.error;
+      catalogos.categorias = cat.data || [];
+      catalogos.marcas = mar.data || [];
+      const aviso = document.getElementById("catalogosAviso");
+      if (aviso) {
+        aviso.classList.toggle("hidden", catalogos.tablasListas);
+        aviso.textContent = "Las tablas de marcas y categorías todavía no existen en Supabase. Corre el SQL crear_marcas_y_categorias.sql.";
+      }
+    }
+
+    function contarProductos(tipo, nombre) {
+      const campo = tipo === "categorias" ? "categoria" : "marca";
+      return products.filter(p => (p[campo] || "") === nombre).length;
+    }
+
+    function renderCatalogos() {
+      [["categorias", "Categorías", "catalogoCategorias", "Ej: Perfumes"],
+       ["marcas", "Marcas", "catalogoMarcas", "Ej: Kiss Beauty"]].forEach(([tipo, titulo, contenedorId, ejemplo]) => {
+        const lista = catalogos[tipo];
+        document.getElementById(contenedorId).innerHTML = `
+          <div class="bg-white rounded-2xl border border-[#e9bfdf] shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-stone-100 flex items-center justify-between">
+              <h3 class="font-bold text-stone-900 text-sm">${titulo}</h3>
+              <span class="text-[11px] font-bold text-pink-600">${lista.length}</span>
+            </div>
+            <form data-catalogo-crear="${tipo}" class="p-3 flex gap-2 border-b border-stone-100 bg-[#fdf3f8]">
+              <input name="nombre" required autocomplete="off" placeholder="${ejemplo}" class="flex-1 text-xs border border-stone-200 rounded-lg p-2">
+              <button class="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold rounded-lg flex items-center gap-1 whitespace-nowrap">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Crear
+              </button>
+            </form>
+            <div class="divide-y divide-stone-100 max-h-[28rem] overflow-y-auto">
+              ${lista.length ? lista.map(x => {
+                const n = contarProductos(tipo, x.nombre);
+                return `
+                  <div class="flex items-center gap-2 px-4 py-2 text-xs">
+                    <span class="flex-1 font-semibold text-stone-800">${escaparHtml(x.nombre)}</span>
+                    <span class="text-[10px] ${n ? 'text-stone-500' : 'text-stone-300'}">${n} ${n === 1 ? 'producto' : 'productos'}</span>
+                    <button data-catalogo-renombrar="${tipo}" data-id="${x.id}" title="Cambiar nombre" class="p-1.5 text-stone-500 hover:text-pink-600 hover:bg-pink-50 rounded-lg">
+                      <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button data-catalogo-borrar="${tipo}" data-id="${x.id}" title="${n ? 'No se puede eliminar: tiene productos' : 'Eliminar'}" ${n ? 'disabled' : ''}
+                            class="p-1.5 rounded-lg ${n ? 'text-stone-200 cursor-not-allowed' : 'text-stone-400 hover:text-red-600 hover:bg-red-50'}">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>`;
+              }).join("") : `<p class="p-6 text-center text-xs text-stone-400">No hay ${titulo.toLowerCase()} todavía.</p>`}
+            </div>
+          </div>`;
+      });
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    document.getElementById("sectionCatalogos").addEventListener("submit", async (e) => {
+      const form = e.target.closest("[data-catalogo-crear]");
+      if (!form) return;
+      e.preventDefault();
+      const tipo = form.dataset.catalogoCrear;
+      const nombre = form.nombre.value.trim().replace(/\s+/g, " ");
+      if (!nombre) return;
+      const repetida = catalogos[tipo].find(x => claveComparar(x.nombre) === claveComparar(nombre));
+      if (repetida) {
+        alert(`Ya existe "${repetida.nombre}". No se creó para no repetir.`);
+        return;
+      }
+      const { error } = await sb.from(tipo).insert({ nombre });
+      if (error) { alert("No se pudo crear: " + error.message); return; }
+      await fetchCatalogos();
+      renderCatalogos();
+    });
+
+    document.getElementById("sectionCatalogos").addEventListener("click", async (e) => {
+      const btnRenombrar = e.target.closest("[data-catalogo-renombrar]");
+      const btnBorrar = e.target.closest("[data-catalogo-borrar]");
+      if (!btnRenombrar && !btnBorrar) return;
+      const btn = btnRenombrar || btnBorrar;
+      const tipo = btnRenombrar ? btn.dataset.catalogoRenombrar : btn.dataset.catalogoBorrar;
+      const item = catalogos[tipo].find(x => String(x.id) === btn.dataset.id);
+      if (!item) return;
+
+      if (btnRenombrar) {
+        const nuevo = (prompt(`Nuevo nombre para "${item.nombre}":`, item.nombre) || "").trim().replace(/\s+/g, " ");
+        if (!nuevo || nuevo === item.nombre) return;
+        const otra = catalogos[tipo].find(x => x.id !== item.id && claveComparar(x.nombre) === claveComparar(nuevo));
+        if (otra) { alert(`Ya existe "${otra.nombre}". Usa otro nombre.`); return; }
+        const n = contarProductos(tipo, item.nombre);
+        if (n && !confirm(`Se va a cambiar en ${n} producto(s). ¿Continuar?`)) return;
+        const { error } = await sb.from(tipo).update({ nombre: nuevo }).eq("id", item.id);
+        if (error) { alert("No se pudo cambiar: " + error.message); return; }
+        await fetchProducts();
+      } else {
+        if (!confirm(`¿Eliminar "${item.nombre}"?`)) return;
+        const { error } = await sb.from(tipo).delete().eq("id", item.id);
+        if (error) { alert(error.message); return; }
+      }
+      await fetchCatalogos();
+      renderCatalogos();
+    });
 
     function normalizarContraLista(valor, lista) {
       const limpio = String(valor || "").trim().replace(/\s+/g, " ");
