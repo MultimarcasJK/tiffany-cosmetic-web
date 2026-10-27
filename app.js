@@ -121,6 +121,11 @@ async function loadProducts() {
             tonos: p.tonos || []
           };
         });
+        // Los aromas de las Cremas Valquin (y si están agotados) vienen de Supabase
+        if (window.ValquinAromasManager) {
+          const valquin = state.products.find(p => window.ValquinAromasManager.esValquin(p));
+          if (valquin) window.ValquinAromasManager.usarTonosDeProducto(valquin.tonos);
+        }
         console.log(`Cargados ${state.products.length} productos directamente desde Supabase en la nube`);
         setupProductCategories();
         return;

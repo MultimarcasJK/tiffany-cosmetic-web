@@ -645,6 +645,7 @@
 
         if (!error && Array.isArray(data) && data.length > 0) {
           products = data;
+          await sincronizarValquin();
           renderTable();
           console.log(`Catálogo sincronizado desde Supabase (${data.length} productos)`);
           const badge = document.getElementById("productTotalBadge");
@@ -660,6 +661,29 @@
           renderTable();
         }
       }
+    }
+
+    // Los aromas de las Cremas Valquin viven en la columna "tonos" de ese producto en Supabase.
+    // La primera vez se suben desde la lista del archivo valquin-aromas.js, respetando
+    // los agotados que este navegador tenía guardados.
+    async function sincronizarValquin() {
+      const vm = window.ValquinAromasManager;
+      if (!vm || !sb) return;
+      const p = products.find(x => vm.esValquin(x));
+      if (!p) return;
+      if (Array.isArray(p.tonos) && p.tonos.length) {
+        vm.usarTonosDeProducto(p.tonos);
+        return;
+      }
+      const aromas = vm.getAromas();
+      const { error } = await sb.from('productos').update({ tonos: aromas }).eq('id', p.id);
+      if (error) {
+        console.warn("No se pudieron subir los aromas Valquin a Supabase:", error);
+        return;
+      }
+      p.tonos = aromas;
+      vm.usarTonosDeProducto(aromas);
+      console.log(`Aromas Valquin subidos a Supabase (${aromas.length})`);
     }
 
     async function fetchOrders() {
@@ -1282,21 +1306,27 @@
       if (cancelValquinBtn) cancelValquinBtn.addEventListener("click", closeValquinAdminModal);
 
       if (markAllValquinBtn) {
+        // Solo marca las casillas; se guarda en Supabase al presionar "Guardar"
         markAllValquinBtn.addEventListener("click", () => {
           document.querySelectorAll(".aroma-stock-checkbox").forEach(cb => cb.checked = true);
-          if (window.ValquinAromasManager) window.ValquinAromasManager.resetAll();
-          renderValquinAdminAromas();
         });
       }
 
       if (saveValquinBtn) {
-        saveValquinBtn.addEventListener("click", () => {
-          if (!window.ValquinAromasManager) return;
-          const checkboxes = document.querySelectorAll(".aroma-stock-checkbox");
-          checkboxes.forEach(cb => {
-            const aromaId = cb.dataset.aromaId;
-            window.ValquinAromasManager.setAvailability(aromaId, cb.checked);
-          });
+        saveValquinBtn.addEventListener("click", async () => {
+          const vm = window.ValquinAromasManager;
+          if (!vm) return;
+          const estado = {};
+          document.querySelectorAll(".aroma-stock-checkbox").forEach(cb => { estado[cb.dataset.aromaId] = cb.checked; });
+          const aromas = vm.getAromas().map(a => ({ ...a, disponible: estado.hasOwnProperty(a.id) ? estado[a.id] : a.disponible }));
+
+          // Se guarda en Supabase para que TODOS los clientes vean los mismos agotados
+          const p = products.find(x => vm.esValquin(x));
+          if (!p || !sb) { alert("No encontré el producto Cremas Valquin en el catálogo."); return; }
+          const { error } = await sb.from('productos').update({ tonos: aromas }).eq('id', p.id);
+          if (error) { alert("Error guardando los aromas en Supabase: " + error.message); return; }
+          p.tonos = aromas;
+          vm.usarTonosDeProducto(aromas);
 
           renderValquinAdminAromas();
           if (saveNotice) saveNotice.classList.remove("hidden");

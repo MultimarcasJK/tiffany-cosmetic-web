@@ -241,8 +241,32 @@ const VALQUIN_CATALOGO_DEFAULT = [
 window.ValquinAromasManager = {
   STORAGE_KEY: "valquin_aromas_status_v1",
 
+  // Aromas guardados en Supabase (columna "tonos" del producto Valquin).
+  // Si existen, mandan sobre la lista de abajo y sobre lo guardado en este navegador.
+  _desdeSupabase: null,
+
+  esValquin: function(p) {
+    const id = String((p && p.id) || "").toLowerCase();
+    const titulo = String((p && (p.titulo || p.title)) || "").toLowerCase();
+    return id.includes("valquin") || titulo.includes("valquin");
+  },
+
+  usarTonosDeProducto: function(tonos) {
+    this._desdeSupabase = Array.isArray(tonos) && tonos.length ? tonos : null;
+  },
+
   // Obtener lista completa combinando defaults con el estado guardado (disponible / agotado)
   getAromas: function() {
+    if (this._desdeSupabase) {
+      return this._desdeSupabase.map(t => {
+        // Un aroma agregado desde el formulario de edición solo trae el nombre:
+        // se completa con valores por defecto para que aparezca en la guía
+        const base = VALQUIN_CATALOGO_DEFAULT.find(a => a.id === t.id) ||
+          { genero: "mujer", generoLabel: "Dama / Unisex", familia: "", icono: "🌸", salida: "", corazon: "", fondo: "" };
+        return { ...base, ...t, disponible: t.disponible !== false };
+      });
+    }
+
     let savedStatus = {};
     try {
       const raw = localStorage.getItem(this.STORAGE_KEY);
