@@ -244,10 +244,24 @@
               <input type="text" id="editMarca" list="listaMarcas" autocomplete="off" placeholder="Elige o escribe..." class="w-full border border-stone-200 rounded-lg p-2">
               <datalist id="listaMarcas"></datalist>
             </div>
-            <div>
-              <label class="block font-bold text-stone-700 mb-1">URL o Ruta de Imagen</label>
-              <input type="text" id="editImage" placeholder="https://... o imagenes/foto.jpg" class="w-full border border-stone-200 rounded-lg p-2">
+          </div>
+
+          <!-- FOTOS DEL PRODUCTO -->
+          <div>
+            <label class="block font-bold text-stone-700 mb-1 flex items-center justify-between">
+              <span>Fotos del producto</span>
+              <span id="editFotosCount" class="text-[10px] text-pink-600 font-semibold">0 fotos</span>
+            </label>
+            <div id="editFotosLista" class="flex flex-wrap gap-2 mb-2"></div>
+            <div class="flex gap-2">
+              <label id="editSubirFotoBtn" class="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+                <i data-lucide="camera" class="w-4 h-4"></i>
+                <span id="editSubirFotoTexto">Subir foto</span>
+                <input type="file" id="editSubirFotoInput" accept="image/*" multiple class="hidden">
+              </label>
+              <input type="text" id="editImage" placeholder="o pega el link de una foto y presiona Enter" class="flex-1 border border-stone-200 rounded-lg p-2">
             </div>
+            <p class="text-[10px] text-stone-400 mt-1">La primera foto (⭐) es la principal. Puedes subir varias a la vez desde la computadora o el celular.</p>
           </div>
 
           <!-- 3 PRECIOS EN EL FORMULARIO -->
@@ -921,6 +935,9 @@
         document.getElementById("editProductId").value = "";
         editTonos = [];
         renderEditTonos();
+        editFotos = [];
+        editFotosId = null;
+        renderEditFotos();
         llenarListasDesplegables();
         document.getElementById("editModal").classList.remove("hidden");
       });
@@ -937,7 +954,7 @@
         // Si lo escrito coincide con una categoría/marca que ya existe, se usa exactamente esa
         const categoria = normalizarContraLista(document.getElementById("editCategory").value, valoresUnicos("categoria"));
         const marca = normalizarContraLista(document.getElementById("editMarca").value, valoresUnicos("marca")) || null;
-        const image = document.getElementById("editImage").value.trim();
+        agregarFotoDesdeLink(); // si pegaron un link y no presionaron Enter
         const precio_unitario = parseFloat(document.getElementById("editPrice").value) || 0;
         const precio_mayor = parseFloat(document.getElementById("editMayorPrice").value) || precio_unitario;
         const precio_docena = parseFloat(document.getElementById("editDocenaPrice").value) || precio_mayor;
@@ -946,15 +963,9 @@
         agregarTonoDesdeInput();
         const tonos = editTonos.map((t, i) => ({ ...t, id: t.id || "tono-" + (i + 1) }));
 
-        // Al editar se conservan las demás fotos y el estado agotado/disponible
+        // Al editar se conserva el estado agotado/disponible
         const existing = products.find(x => x.id === id);
-        const oldImgs = existing ? (existing.imagenes || []) : [];
-        let imagenes;
-        if (image) {
-          imagenes = [image, ...oldImgs.slice(1).filter(u => u !== image)];
-        } else {
-          imagenes = oldImgs.length ? oldImgs.slice(1) : ["https://via.placeholder.com/500"];
-        }
+        const imagenes = [...editFotos];
 
         const productPayload = {
           id,
@@ -1484,6 +1495,97 @@
       });
     });
 
+    // ----------------- FOTOS EN EL FORMULARIO DE EDICIÓN -----------------
+    let editFotos = [];      // URLs; la primera es la principal
+    let editFotosId = null;  // código del producto que se está editando (para la carpeta)
+
+    function esFotoDeRelleno(url) {
+      return /placeholder\.com|unsplash\.com/i.test(url);
+    }
+
+    function renderEditFotos() {
+      document.getElementById("editFotosCount").textContent = `${editFotos.length} ${editFotos.length === 1 ? 'foto' : 'fotos'}`;
+      document.getElementById("editFotosLista").innerHTML = editFotos.length ? editFotos.map((url, i) => `
+        <div class="relative w-20 h-20 rounded-lg overflow-hidden border-2 ${i === 0 ? 'border-pink-500' : 'border-stone-200'} group">
+          <img src="${escaparHtml(url)}" class="w-full h-full object-cover" onerror="this.style.opacity=0.3">
+          ${i === 0
+            ? `<span class="absolute top-0.5 left-0.5 bg-pink-600 text-white text-[9px] font-bold px-1 rounded">⭐ Principal</span>`
+            : `<button type="button" data-foto-principal="${i}" title="Hacer principal" class="absolute top-0.5 left-0.5 bg-white/90 text-stone-700 text-[9px] font-bold px-1 rounded hover:bg-pink-600 hover:text-white">⭐</button>`}
+          <button type="button" data-foto-quitar="${i}" title="Quitar foto" class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white/90 text-stone-600 hover:bg-red-600 hover:text-white flex items-center justify-center text-xs font-bold">×</button>
+        </div>
+      `).join("") : `<p class="text-[11px] text-stone-400 italic">Este producto no tiene fotos todavía.</p>`;
+    }
+
+    function agregarFotoDesdeLink() {
+      const input = document.getElementById("editImage");
+      const url = input.value.trim();
+      if (!url) return;
+      if (!editFotos.includes(url)) editFotos.push(url);
+      input.value = "";
+      renderEditFotos();
+    }
+
+    // Achica la foto (máx. 1600 px, JPEG) para que la web cargue rápido
+    function achicarFoto(archivo) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const escala = Math.min(1, 1600 / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * escala);
+          canvas.height = Math.round(img.height * escala);
+          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(blob => resolve(blob || archivo), "image/jpeg", 0.85);
+          URL.revokeObjectURL(img.src);
+        };
+        img.onerror = () => resolve(archivo);
+        img.src = URL.createObjectURL(archivo);
+      });
+    }
+
+    document.getElementById("editSubirFotoInput").addEventListener("change", async (e) => {
+      const archivos = [...e.target.files];
+      e.target.value = "";
+      if (!archivos.length || !sb) return;
+
+      const texto = document.getElementById("editSubirFotoTexto");
+      const carpeta = claveComparar(editFotosId || document.getElementById("editTitle").value) || "productos-nuevos";
+      let fallidas = 0;
+      for (let i = 0; i < archivos.length; i++) {
+        texto.textContent = `Subiendo ${i + 1} de ${archivos.length}...`;
+        const foto = await achicarFoto(archivos[i]);
+        const ruta = `${carpeta}/panel-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+        const { error } = await sb.storage.from("fotos_productos").upload(ruta, foto, { contentType: "image/jpeg" });
+        if (error) {
+          fallidas++;
+          console.warn("Error subiendo foto:", error);
+          continue;
+        }
+        editFotos.push(sb.storage.from("fotos_productos").getPublicUrl(ruta).data.publicUrl);
+        renderEditFotos();
+      }
+      texto.textContent = "Subir foto";
+      if (fallidas) {
+        alert(`No se pudieron subir ${fallidas} foto(s). Si es la primera vez, falta correr el SQL permiso_subir_fotos.sql en Supabase.`);
+      }
+    });
+
+    document.getElementById("editImage").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); agregarFotoDesdeLink(); }
+    });
+
+    document.getElementById("editFotosLista").addEventListener("click", (e) => {
+      const principal = e.target.closest("[data-foto-principal]");
+      const quitar = e.target.closest("[data-foto-quitar]");
+      if (principal) {
+        const [foto] = editFotos.splice(+principal.dataset.fotoPrincipal, 1);
+        editFotos.unshift(foto);
+      } else if (quitar) {
+        editFotos.splice(+quitar.dataset.fotoQuitar, 1);
+      } else return;
+      renderEditFotos();
+    });
+
     // ----------------- TONOS EN EL FORMULARIO DE EDICIÓN -----------------
     let editTonos = [];
 
@@ -1562,8 +1664,10 @@
       document.getElementById("editTitle").value = p.titulo || p.title || "";
       document.getElementById("editCategory").value = p.categoria || p.category || "";
       document.getElementById("editMarca").value = p.marca || "";
-      const imgs = p.imagenes || p.images || [];
-      document.getElementById("editImage").value = imgs[0] || "";
+      editFotos = (p.imagenes || p.images || []).filter(u => u && !esFotoDeRelleno(u));
+      editFotosId = p.id;
+      document.getElementById("editImage").value = "";
+      renderEditFotos();
       document.getElementById("editPrice").value = p.precio_unitario || p.price || 0;
       document.getElementById("editMayorPrice").value = p.precio_mayor || p.mayor_price || p.precio_unitario || p.price || 0;
       document.getElementById("editDocenaPrice").value = p.precio_docena || p.docena_price || p.precio_mayor || p.mayor_price || 0;
