@@ -633,6 +633,7 @@ function openProductModal(product) {
   } else {
     if (descTitle) descTitle.textContent = "Descripción:";
     descEl.classList.remove("hidden");
+    descEl.classList.add("max-h-40", "whitespace-pre-line"); // descripción normal: con scroll
     descEl.textContent = product.description || "Sin descripción disponible.";
     if (valquinContainer) valquinContainer.classList.add("hidden");
     if (valquinMultiSummary) valquinMultiSummary.classList.add("hidden");
@@ -1145,6 +1146,8 @@ function renderValquinAromasGuide(product) {
 
   // Breve resumen inicial elegante de la crema
   if (descEl) {
+    // El recuadro informativo se muestra completo (sin altura máxima ni líneas en blanco extra)
+    descEl.classList.remove("max-h-40", "whitespace-pre-line");
     descEl.innerHTML = `
       <div class="p-2.5 rounded-xl bg-pink-50/60 border border-pink-200/80 text-stone-700 space-y-1">
         <p class="font-medium">🧴 <strong>Cremas Corporales Valquin:</strong> Hidratación profunda y fragancias de perfumería fina inspiradas en aromas icónicos internacionales.</p>
@@ -1457,6 +1460,7 @@ function renderProductTonosGuide(product) {
   if (descTitle) descTitle.textContent = "🎨 Tonos Disponibles & Cantidades:";
 
   if (descEl) {
+    descEl.classList.remove("max-h-40", "whitespace-pre-line");
     descEl.innerHTML = `
       <div class="p-2.5 rounded-xl bg-pink-50/60 border border-pink-200/80 text-stone-700 space-y-1">
         <p class="font-medium">✨ <strong>Tonos / Variantes disponibles:</strong></p>
