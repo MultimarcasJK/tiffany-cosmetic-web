@@ -1496,8 +1496,22 @@
       document.getElementById("editTonosCount").textContent = `${editTonos.length} ${editTonos.length === 1 ? 'tono' : 'tonos'}`;
       lista.innerHTML = editTonos.map((t, i) => `
         <div class="flex items-center gap-2 border rounded-lg px-2.5 py-1.5 ${t.disponible === false ? 'border-stone-200 bg-stone-50' : 'border-emerald-200 bg-emerald-50/50'}">
-          <span class="w-2 h-2 rounded-full ${t.disponible === false ? 'bg-stone-300' : 'bg-emerald-500'}"></span>
-          <span class="flex-1 font-semibold ${t.disponible === false ? 'text-stone-400 line-through' : 'text-stone-800'}">${escaparHtml(t.nombre)}</span>
+          <span class="w-2 h-2 rounded-full shrink-0 ${t.disponible === false ? 'bg-stone-300' : 'bg-emerald-500'}"></span>
+          ${t.icono ? `<span class="text-base shrink-0">${escaparHtml(t.icono)}</span>` : ''}
+          <span class="flex-1 min-w-0">
+            <span class="block font-semibold ${t.disponible === false ? 'text-stone-400 line-through' : 'text-stone-800'}">${escaparHtml(t.nombre)}</span>
+            ${t.generoLabel || t.familia ? `
+              <span class="block text-[10px] text-stone-500 truncate">
+                ${t.generoLabel ? `<span class="font-bold ${t.genero === 'hombre' ? 'text-sky-700' : 'text-pink-600'}">${escaparHtml(t.generoLabel)}</span>` : ''}
+                ${t.generoLabel && t.familia ? ' · ' : ''}${escaparHtml(t.familia || '')}
+              </span>` : ''}
+            ${t.salida || t.corazon || t.fondo ? `
+              <span class="block text-[10px] text-stone-400 leading-snug mt-0.5">
+                ${t.salida ? `<b>Salida:</b> ${escaparHtml(t.salida)} ` : ''}
+                ${t.corazon ? `<b>Corazón:</b> ${escaparHtml(t.corazon)} ` : ''}
+                ${t.fondo ? `<b>Fondo:</b> ${escaparHtml(t.fondo)}` : ''}
+              </span>` : ''}
+          </span>
           <button type="button" data-tono-toggle="${i}" class="text-[10px] font-bold px-2 py-0.5 rounded-full ${t.disponible === false ? 'bg-stone-200 text-stone-600' : 'bg-emerald-100 text-emerald-700'}">
             ${t.disponible === false ? 'Agotado' : 'En stock'}
           </button>
