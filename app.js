@@ -1014,9 +1014,9 @@ function handleWhatsAppCheckout() {
 
     if (item.aroma) {
       const label = item.isTono ? "Tono" : "Aroma";
-      itemsText += `• ${item.qty}x ${item.title}\n   ↳ ${label}: *${item.aroma}*\n   ↳ Tarifa: ${tier.label} ($${tier.price.toFixed(2)} c/u) = *$${itemSubtotal.toFixed(2)}*\n`;
+      itemsText += `• ${item.qty}x ${item.title}\n   ${label}: *${item.aroma}*\n   ${tier.label} · $${tier.price.toFixed(2)} c/u = *$${itemSubtotal.toFixed(2)}*\n`;
     } else {
-      itemsText += `• ${item.qty}x ${item.title}\n   ↳ Tarifa: ${tier.label} ($${tier.price.toFixed(2)} c/u) = *$${itemSubtotal.toFixed(2)}*\n`;
+      itemsText += `• ${item.qty}x ${item.title}\n   ${tier.label} · $${tier.price.toFixed(2)} c/u = *$${itemSubtotal.toFixed(2)}*\n`;
     }
   });
 
