@@ -885,8 +885,8 @@ function updateCartUI() {
 
       return `
         <div class="flex flex-col gap-2 pt-3 first:pt-0">
-          <div class="flex items-center gap-3">
-            <img src="${item.image}" alt="${item.title}" class="w-14 h-14 rounded-xl object-cover border border-stone-100 shrink-0">
+          <div class="flex items-center gap-2 sm:gap-3">
+            <img src="${item.image}" alt="${item.title}" class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-stone-100 shrink-0">
             
             <div class="flex-1 min-w-0">
               <h4 class="text-xs font-semibold text-stone-900 truncate">${item.title}</h4>
@@ -915,14 +915,14 @@ function updateCartUI() {
             </div>
 
             <!-- Quantity Controls -->
-            <div class="flex items-center gap-1 bg-stone-100 rounded-lg p-1">
+            <div class="flex items-center gap-1 bg-stone-100 rounded-lg p-1 shrink-0">
               <button onclick="updateCartItemQty('${item.id}', -1)" class="w-6 h-6 rounded flex items-center justify-center bg-white hover:bg-stone-200 text-stone-700 text-xs font-bold shadow-xs transition-colors">-</button>
               <span class="w-6 text-center text-xs font-bold">${item.qty}</span>
               <button onclick="updateCartItemQty('${item.id}', 1)" class="w-6 h-6 rounded flex items-center justify-center bg-white hover:bg-stone-200 text-stone-700 text-xs font-bold shadow-xs transition-colors">+</button>
             </div>
 
             <!-- Delete -->
-            <button onclick="removeCartItem('${item.id}')" class="p-1.5 text-stone-400 hover:text-red-500 rounded-md transition-colors" title="Eliminar">
+            <button onclick="removeCartItem('${item.id}')" class="p-1.5 text-stone-400 hover:text-red-500 rounded-md transition-colors shrink-0" title="Eliminar">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </div>
