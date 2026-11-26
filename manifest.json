@@ -1,0 +1,17 @@
+{
+  "name": "Tiffany Cosmetic",
+  "short_name": "Tiffany",
+  "description": "Catálogo de Tiffany Cosmetic Ecuador. Pide al detal o al por mayor directo por WhatsApp.",
+  "lang": "es",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fcd0dd",
+  "theme_color": "#ca305a",
+  "icons": [
+    { "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "iconos/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "iconos/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

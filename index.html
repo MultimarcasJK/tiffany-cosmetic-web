@@ -6,6 +6,15 @@
   <title>Tiffany Cosmetic Ecuador | Catálogo Oficial</title>
   <meta name="description" content="Catálogo exclusivo de belleza, cosméticos y cuidado personal en Ecuador. Pedidos directos a WhatsApp.">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
+
+  <!-- App instalable (PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ca305a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tiffany">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -613,5 +622,22 @@
   <script src="products-data.js"></script>
   <!-- 3. Application Logic -->
   <script src="app.js"></script>
+
+  <!-- BOTON INSTALAR APP (aparece solo si el navegador permite instalar) -->
+  <button id="installAppBtn" class="hidden fixed bottom-4 left-4 z-40 flex items-center gap-2 bg-white text-brand-700 border border-brand-200 shadow-lg rounded-full pl-3 pr-4 py-2.5 text-xs font-bold hover:bg-brand-50 transition-colors">
+    <img src="iconos/icono-192.png" alt="" class="w-6 h-6 rounded-full">
+    <span>Instalar App</span>
+  </button>
+
+  <!-- AVISO PARA IPHONE (Safari no tiene boton de instalar) -->
+  <div id="iosInstallHint" class="hidden fixed bottom-20 left-4 right-4 z-40 bg-white border border-brand-200 shadow-xl rounded-2xl p-3 text-xs text-stone-700">
+    <button id="iosInstallHintClose" class="absolute top-1.5 right-2 text-stone-400 text-base leading-none" aria-label="Cerrar">&times;</button>
+    <div class="flex items-start gap-2 pr-4">
+      <img src="iconos/icono-192.png" alt="" class="w-8 h-8 rounded-lg shrink-0">
+      <p><strong>Instala nuestra app:</strong> toca el botón <strong>Compartir</strong> <span aria-hidden="true">⬆️</span> y luego <strong>"Agregar a inicio"</strong>.</p>
+    </div>
+  </div>
+
+  <script src="instalar-app.js"></script>
 </body>
 </html>
